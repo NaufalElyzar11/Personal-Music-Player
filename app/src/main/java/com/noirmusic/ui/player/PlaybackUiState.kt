@@ -41,6 +41,7 @@ data class PlaybackUiState(
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val queueIndex: Int = -1,
     val queueSize: Int = 0,
+    val queue: List<NowPlaying> = emptyList(),
     val errorMessage: String? = null,
 )
 

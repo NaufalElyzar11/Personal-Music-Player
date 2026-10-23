@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Playlists Overview - Noir Music</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#333534",
+            "on-primary-fixed-variant": "#394d00",
+            "on-primary-fixed": "#151f00",
+            "tertiary": "#e6eae4",
+            "inverse-on-surface": "#2f3130",
+            "error-container": "#93000a",
+            "on-secondary": "#2b322b",
+            "primary-fixed-dim": "#b2d264",
+            "background": "#121413",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#dee4db",
+            "surface-container-lowest": "#0d0f0e",
+            "inverse-surface": "#e2e3e0",
+            "error": "#ffb4ab",
+            "on-tertiary": "#2d322d",
+            "secondary-fixed-dim": "#c2c8bf",
+            "outline-variant": "#454839",
+            "on-error": "#690005",
+            "secondary-container": "#424941",
+            "on-background": "#e2e3e0",
+            "primary": "#d4f683",
+            "on-tertiary-fixed": "#181d19",
+            "on-secondary-fixed": "#171d17",
+            "surface-dim": "#121413",
+            "surface-container-highest": "#333534",
+            "on-primary-container": "#465f00",
+            "on-surface": "#e2e3e0",
+            "surface-container-high": "#282a29",
+            "inverse-primary": "#4d6700",
+            "on-primary": "#263500",
+            "tertiary-fixed-dim": "#c3c8c2",
+            "on-tertiary-fixed-variant": "#434843",
+            "tertiary-fixed": "#dfe4dd",
+            "primary-container": "#b8d96a",
+            "on-secondary-fixed-variant": "#424941",
+            "surface-bright": "#383a38",
+            "primary-fixed": "#cdef7d",
+            "on-secondary-container": "#b0b7ae",
+            "surface": "#121413",
+            "on-surface-variant": "#c5c8b4",
+            "surface-container-low": "#1a1c1b",
+            "surface-tint": "#b2d264",
+            "secondary": "#c2c8bf",
+            "on-tertiary-container": "#535853",
+            "outline": "#8f9380",
+            "surface-container": "#1e201f",
+            "tertiary-container": "#c9cec8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem"
+          },
+          "fontFamily": {
+            "label-mono-sm": ["Geist", "monospace"],
+            "body-lg": ["Geist", "sans-serif"],
+            "label-mono": ["Geist", "monospace"],
+            "body-md": ["Geist", "sans-serif"],
+            "headline-lg-mobile": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"]
+          },
+          "fontSize": {
+            "label-mono-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "500" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-mono": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      background-color: #121413;
+      color: #e2e3e0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .hairline-border {
+      border: 1px solid #343A35;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface flex justify-center items-start min-h-screen antialiased selection:bg-primary selection:text-on-primary">
+<!-- Mobile Android Container (390px simulated layout) -->
+<main class="w-full max-w-[390px] min-h-screen bg-surface flex flex-col relative overflow-hidden pb-36">
+<!-- Android Safe Inset / Status Bar -->
+<header class="pt-3 px-space-md pb-1 flex justify-between items-center text-secondary select-none">
+<span class="font-label-mono text-label-mono tracking-tight text-on-surface font-semibold">09:41</span>
+<div class="flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-[15px]" data-icon="graphic_eq">graphic_eq</span>
+<span class="font-label-mono-sm text-label-mono-sm text-primary font-semibold">96k</span>
+<span class="material-symbols-outlined text-[15px] ml-1" data-icon="wifi">wifi</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="battery_full">battery_full</span>
+</div>
+</header>
+<!-- TopAppBar adhering to Shared Components JSON (headline: "Noir Music" / Playlists contextual view) -->
+<nav class="flex justify-between items-center w-full px-space-md py-space-sm bg-surface z-20">
+<div class="flex items-center gap-space-sm">
+<button aria-label="Logo graphic" class="w-10 h-10 -ml-1 flex items-center justify-center active:opacity-75 transition-opacity duration-150">
+<span class="material-symbols-outlined text-primary text-[22px]" data-icon="graphic_eq">graphic_eq</span>
+</button>
+<div>
+<span class="font-headline-sm text-headline-sm font-semibold tracking-tight text-on-surface">Noir Music</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button aria-label="Search" class="w-10 h-10 flex items-center justify-center text-secondary hover:text-on-surface active:opacity-75 transition-colors">
+<span class="material-symbols-outlined text-[22px]" data-icon="search">search</span>
+</button>
+<!-- "+ New Playlist" pill action button with accent border -->
+<button class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-surface-container-low border border-primary-container text-primary font-label-mono-sm text-label-mono-sm font-medium tracking-wide active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[15px]" data-icon="add">add</span>
+<span>New Playlist</span>
+</button>
+</div>
+</nav>
+<!-- Sub-header & Audiophile Telemetry Filter Bar -->
+<section class="px-space-md pt-2 pb-space-sm">
+<div class="flex items-baseline justify-between">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface tracking-tight">Playlists</h1>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary bg-surface-container px-2 py-0.5 rounded border border-surface-variant">LOCAL STORAGE</span>
+</div>
+<div class="flex items-center gap-2 mt-1">
+<span class="font-label-mono text-label-mono text-secondary">4 Playlists • 186 Local Tracks</span>
+<span class="w-1 h-1 rounded-full bg-surface-variant"></span>
+<span class="font-label-mono text-label-mono text-primary flex items-center gap-0.5">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container mr-0.5"></span>
+          FLAC / DSD Ready
+        </span>
+</div>
+<!-- Audiophile Filter Chips -->
+<div class="flex items-center gap-2 mt-3 overflow-x-auto custom-scroll pb-1">
+<button class="h-7 px-3 rounded flex items-center gap-1.5 bg-surface-container-high border border-primary-container text-primary font-label-mono-sm text-label-mono-sm">
+<span>All Playlists</span>
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span>
+</button>
+<button class="h-7 px-3 rounded flex items-center gap-1 bg-surface-container border border-surface-variant text-secondary hover:text-on-surface font-label-mono-sm text-label-mono-sm">
+<span>Lossless Only</span>
+</button>
+<button class="h-7 px-3 rounded flex items-center gap-1 bg-surface-container border border-surface-variant text-secondary hover:text-on-surface font-label-mono-sm text-label-mono-sm">
+<span>Recently Added</span>
+</button>
+</div>
+</section>
+<!-- Playlists Content List / Bento Cards -->
+<section class="px-space-md flex flex-col gap-3 mt-1">
+<!-- Dashed Quick Action: Create Playlist Card -->
+<button class="w-full py-4 px-space-md rounded-lg border border-dashed border-surface-variant hover:border-primary-container/60 bg-surface-container-lowest/40 flex items-center justify-between group active:scale-[0.99] transition-all">
+<div class="flex items-center gap-3">
+<div class="w-11 h-11 rounded bg-surface-container-low border border-surface-variant flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]" data-icon="add">add</span>
+</div>
+<div class="text-left">
+<span class="font-body-lg text-body-lg text-on-surface block font-medium">Create a new playlist</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary block mt-0.5">Custom curation &amp; smart rule grouping</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary group-hover:text-primary transition-colors" data-icon="chevron_right">chevron_right</span>
+</button>
+<!-- Playlist 1: Late Night Resonance -->
+<article class="p-3 bg-surface-container-low rounded-lg border border-surface-variant hover:border-outline-variant transition-colors">
+<div class="flex items-start gap-3">
+<!-- 2x2 Album Artwork Collage -->
+<div class="w-20 h-20 rounded bg-surface-container grid grid-cols-2 grid-rows-2 gap-[1px] p-[1px] border border-surface-variant flex-shrink-0 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Dark aesthetic electronic album cover featuring monochromatic moody gradient textures, minimalist Swiss typography, and subtle glowing analog synth waveform lines under moody studio lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpHDVJG7KdLFD8ehtWe6PdiD5iUC7Zkx50e0yactPZvzQI4LYy4I3aIM-PGb470HFoEh-gOkJUnlZYiPBXTCaNmL3YjUF5c_OHD4t0ZdtUXyyCaHyS9jFVSXF60WD9Ma76yk9qMV2I2cxv132Rpk6xQ_StHguXXMBp0nolmD1dsIkMOr1JWJMtL2mukn8d9ASoTbFsNKYyeXIbFiDljQKpE4SrhbpkyG2ynbCMNRbKJ7lV9jzRr-qn"/>
+<img class="w-full h-full object-cover" data-alt="Deep charcoal and muted lime abstract ambient music album artwork showing high-resolution tactile audio equipment knobs, textured grain surface, and audiophile studio acoustics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKXLuKIuVRXIGW_TWPltREQ8PI7Y_dnujcp6q3MSltt5KiyFXyVUZYAQlC8Y0-A2GZjA_RnnAeDUwZ9tZTvJcdfbo8J_Kv4zFNzforQDdsbK7c0sBjnlD2JrEEE9e0kS9GAv0MToD708liQ4JVMJlZyBLx-RMJdOEI3OnDWMXrpoG07CPvwN7kTtMXJD9t3DHDXbNchrP6nZbUCgGiQTFke0X0X3r1fLi3fEesTWwSkViX4jHMS0tu"/>
+<img class="w-full h-full object-cover" data-alt="Minimalist dark techno vinyl sleeve cover art with sharp architectural shadows, fine technical grid measurements, and industrial precision details in low key lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDz2IIuq2A1Krfal4dRPsMeOi6UYeBnLjyTB9JvJFIK0BQ83sCbinEwdsWzJMzJ_oMxKnG4Xf8WI37EVNsUPoe8n3eutkHK1GfwkgcNdGXJlq_axNQgzSXpP-dNSERnqISShpOGvkrfYdfPLmF11_v859Kl6_FS9Euuq4R-C52XuYSslHjolLPr1Snn3Oav41czXEcz-nB1I7mm0yrSzvMEyr23MC7DIGdVyobythBpb8H-zTwVVgaD"/>
+<img class="w-full h-full object-cover" data-alt="Macro photography of reel to reel magnetic audio tape deck with dark matte metallic finish and subtle lime green illuminated digital tape counter indicators." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwAFC9DxAYpwzONvm4NZK-zUEGILhMhvUv9CK930cNZyG8y4I-wlGlsB4adSDf5abEyEkvUvwB-FkavMzil_aoIz0CPmfvQJjm3fB8-_ZSPJ5KQwSZv6DRNgW4hoas9Tc2wnlgja75tj0E_u5Q3ZMjrtApz-zpkeNgpKmqhWv_d9TtBkRmif0v5NkaObsUFM2rDHkZBfmNvKi1sJu7VXyNOrnzJ2N80LHCCdkBdRV30Es7cZRKlGG3"/>
+</div>
+<!-- Metadata info -->
+<div class="flex-1 min-w-0 flex flex-col justify-between h-20 py-0.5">
+<div>
+<div class="flex items-center justify-between gap-1">
+<h2 class="font-body-lg text-body-lg text-on-surface font-semibold truncate">Late Night Resonance</h2>
+<button aria-label="Playlist options" class="w-7 h-7 flex items-center justify-center text-secondary hover:text-on-surface -mr-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-secondary truncate mt-0.5">Electronic, Ambient &amp; IDM</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="font-label-mono text-label-mono text-secondary">24 tracks</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono text-label-mono text-secondary">1 hr 48 min</span>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded border border-surface-variant flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[11px]" data-icon="folder">folder</span>
+                SD CARD
+              </span>
+</div>
+</div>
+</div>
+</article>
+<!-- Playlist 2: Bit-Perfect Masters (Audiophile Lossless) -->
+<article class="p-3 bg-surface-container-low rounded-lg border border-surface-variant relative overflow-hidden">
+<div class="absolute top-0 right-0 w-16 h-16 bg-primary-container/5 rounded-bl-full pointer-events-none"></div>
+<div class="flex items-start gap-3">
+<!-- High-End Artwork Single Cover with Audio Telemetry badge -->
+<div class="w-20 h-20 rounded bg-surface-container relative border border-surface-variant flex-shrink-0 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="High fidelity studio master audio visual art featuring a pristine gold and titanium balanced headphone driver assembly against a deep slate background with subtle studio spot lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1gZeGHAprmqbw2F48esddUGijMXWwdrgy_vJFVwjwbb6Ynp9aGj6CjPLw6oz70GEAJUYVIz0YfrC2h9kdyDYsZ4YXViaMZxfRWXgjLvb7bSBG07x7EmDyEpoexf3phQ3_IBwrfeMfd10ppUOmw7b_Z5O6AMiBnNXptz4NbzSn-ToGaGlx6t1dEnuR4pg55DlvPrunnApzJF_7vUgw4Z1qBlTBuNEYdVxC1Ak9IiLm893Q_NZPGOve"/>
+<div class="absolute bottom-0 inset-x-0 bg-background/90 backdrop-blur-xs py-0.5 px-1 border-t border-surface-variant flex justify-center items-center">
+<span class="font-label-mono-sm text-[9px] text-primary font-bold tracking-widest">DSD 256</span>
+</div>
+</div>
+<!-- Metadata info -->
+<div class="flex-1 min-w-0 flex flex-col justify-between h-20 py-0.5">
+<div>
+<div class="flex items-center justify-between gap-1">
+<div class="flex items-center gap-1.5 truncate">
+<h2 class="font-body-lg text-body-lg text-on-surface font-semibold truncate">Bit-Perfect Masters</h2>
+</div>
+<button aria-label="Playlist options" class="w-7 h-7 flex items-center justify-center text-secondary hover:text-on-surface -mr-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<span class="px-1.5 py-0.2 bg-primary-container/20 text-primary border border-primary-container/40 rounded font-label-mono-sm text-[9px] font-semibold">LOSSLESS FLAC</span>
+<span class="font-body-md text-body-md text-secondary truncate">Reference Acoustic</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="font-label-mono text-label-mono text-secondary">18 tracks</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono text-label-mono text-secondary">1 hr 12 min</span>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]" data-icon="check_circle">check_circle</span>
+                24/192 kHz
+              </span>
+</div>
+</div>
+</div>
+</article>
+<!-- Playlist 3: Radiohead Discography -->
+<article class="p-3 bg-surface-container-low rounded-lg border border-surface-variant hover:border-outline-variant transition-colors">
+<div class="flex items-start gap-3">
+<!-- 2x2 Collage representing classic albums -->
+<div class="w-20 h-20 rounded bg-surface-container grid grid-cols-2 grid-rows-2 gap-[1px] p-[1px] border border-surface-variant flex-shrink-0 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Album artwork collage quarter inspired by In Rainbows with deep charcoal dark atmosphere, vibrant chromatic light flares, and experimental typography in Swiss layout." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXsfgdguHw6cvpJ8wFJeiQMm2butvV9IvA85IKHOySz4_MzcQWIwIXZOWx4rAAcD1fP2Bcumsve0-tjFRPtfJ--DWayMvqYYiFKWJYKrxAEg1jGBvbVWi9offulcADDic_RZSIHJYtekYUMP1l097IqXUV_5iB4U-zZOwAvgWujJq4HmyO_SZh8JNSJCqCnBqwPN-0ZyM5O3s1Y0GpJizhO224KkRt3kupf0-AEmwdlm1dpC301c98"/>
+<img class="w-full h-full object-cover" data-alt="Album artwork quarter reminiscent of OK Computer highway sketches, monochromatic pale blue and charcoal mechanical digital blueprints with sharp lines." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKUl8MnCoE6clztXzieNdvr0Quf02bTGlaSdVPCt69y4J9xx-d3X9rmg19sMtbluLNxzofpiVfB-AtkK1nkzY2TMzbf-8f7PWB5rg4M77yFisG_0xIIb6V1mJ9eAlE2RCgXRLov_avi9MX_uhjAglVbIuxZ8TxtP8IPwuXgTdDqZ4GJa1nOIxsFzfGOJsP4AJ5g9Hk_rsGG_MgUqp6ehhg1SIjTVEwK862py2U54CWGPZjBatg66ba"/>
+<img class="w-full h-full object-cover" data-alt="Album artwork quarter depicting jagged snowy mountain peaks with black and red contrasting digital landscapes inspired by Kid A aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsTNaapBl-khqHzTllJ4p7H0gpi-MOfXjUVSKTYa29ivv8leIfqsqAIb_VcxTZv1JJpsWeBbLis_YD0atbDWTdK9DyPF5G9WnIgaj-DXLPrfj-mcXbAfCeQnpRmXBfUgNEY2ThnsdtrNr8OMaNcLgTerBChy77dsf1Kw_lyQ93ej3jqpx98gxQQGitKdbwsmAXfbPKDMCXjIgF1IrpCFXTXSD-g-EVfgv-5fZDSXy-Mzqvlf5aELt2"/>
+<img class="w-full h-full object-cover" data-alt="Minimalist abstract dark tree silhouettes against a textured monochromatic paper background evoking King of Limbs design elements." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAH1QZxnqFSMZzqicIAq83OB2H3b0x2cdnLACLg1V2g24QD1BYeEuko92Mr2bMmlSMG_Zpci9D45Yabakk0FZsZog4SiYq8ZPAAXtLy2TlcjfChd7SYcOkdm1YnRYEqr6pKoaUa1XXipDdXPAgXlRCD6UKHZviEUzNH088np-UqODVV9hRxr382g5JuJ6tDYJwtCM3lKrkCSQTOl_dKNlkNVC7d0b8md1mN5osSkFZRBQlj6QnLBl_b"/>
+</div>
+<!-- Metadata info -->
+<div class="flex-1 min-w-0 flex flex-col justify-between h-20 py-0.5">
+<div>
+<div class="flex items-center justify-between gap-1">
+<h2 class="font-body-lg text-body-lg text-on-surface font-semibold truncate">Radiohead Discography</h2>
+<button aria-label="Playlist options" class="w-7 h-7 flex items-center justify-center text-secondary hover:text-on-surface -mr-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-secondary truncate mt-0.5">Full Studio Chronology</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="font-label-mono text-label-mono text-secondary">64 tracks</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono text-label-mono text-secondary">4 hr 20 min</span>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded border border-surface-variant flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[11px]" data-icon="hard_drive">hard_drive</span>
+                INTERNAL
+              </span>
+</div>
+</div>
+</div>
+</article>
+<!-- Playlist 4: Focus & Coding Ambient -->
+<article class="p-3 bg-surface-container-low rounded-lg border border-surface-variant hover:border-outline-variant transition-colors">
+<div class="flex items-start gap-3">
+<div class="w-20 h-20 rounded bg-surface-container relative border border-surface-variant flex-shrink-0 overflow-hidden shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Dark generative modular synthesizer studio patch cables with soft lime and white indicator LEDs in an ultra clean minimalist workstation setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJNex58hQ2Z3mMbyMfCZefFOfG-K8rvwUrKxAzrKm9W1Dx9k99H-0glAlRnpkP7vSc7N-asRzBNkvdnUZu61ME7ByHdUVuWw19evwgOhkhXkYGRrRBF2jEONJMVVDRNLGf2Bp7otqAPohi_3VDNOVLOI00oyp2GsQmq-Cfp2boobTPL0g0T0JAq2t2hf1aeEx5E4nbmmdJycJCj7fcyLHSPqo4h8ncLRWAnWnnvu4bMMu7Gw6OyUSE"/>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/80 px-1 rounded border border-surface-variant">
+<span class="font-label-mono-sm text-[8px] text-secondary">LOOP</span>
+</div>
+</div>
+<!-- Metadata info -->
+<div class="flex-1 min-w-0 flex flex-col justify-between h-20 py-0.5">
+<div>
+<div class="flex items-center justify-between gap-1">
+<h2 class="font-body-lg text-body-lg text-on-surface font-semibold truncate">Focus &amp; Coding Ambient</h2>
+<button aria-label="Playlist options" class="w-7 h-7 flex items-center justify-center text-secondary hover:text-on-surface -mr-1">
+<span class="material-symbols-outlined text-[18px]" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<p class="font-body-md text-body-md text-secondary truncate mt-0.5">Drone, Deep Synth &amp; Minimal</p>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1.5">
+<span class="font-label-mono text-label-mono text-secondary">80 tracks</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono text-label-mono text-secondary">5 hr 10 min</span>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded border border-surface-variant flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[11px]" data-icon="folder">folder</span>
+                SD CARD
+              </span>
+</div>
+</div>
+</div>
+</article>
+<!-- Storage & Memory Quick Diagnostic Footnote -->
+<div class="mt-2 py-2 px-3 rounded bg-surface-container-lowest border border-surface-variant flex items-center justify-between text-secondary">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary" data-icon="sd_storage">sd_storage</span>
+<span class="font-label-mono-sm text-label-mono-sm">Audio Cache: 14.2 GB / 64 GB</span>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-on-surface-variant">BIT-PERFECT DAC ON</span>
+</div>
+</section>
+<!-- Contextual Bottom Dock Cluster: Persistent Mini-Player + BottomNavBar -->
+<div class="fixed bottom-0 left-0 right-0 max-w-[390px] mx-auto z-40">
+<!-- Persistent Mini-Player (Level 1 Surface with hairline border) -->
+<aside aria-label="Now Playing" class="mx-3 mb-1.5 bg-[#1C201D] border border-[#343A35] rounded-xl overflow-hidden shadow-2xl backdrop-blur-md">
+<!-- Lime 3dp Progress Rail -->
+<div class="w-full bg-[#252A26] h-[3px] relative cursor-pointer">
+<div class="bg-primary-container h-full w-[62%]"></div>
+<div class="absolute left-[62%] -top-[4.5px] w-3 h-3 bg-primary-container rounded-full shadow-xs"></div>
+</div>
+<div class="px-3 py-2 flex items-center justify-between gap-3">
+<!-- Album Thumbnail -->
+<div class="w-10 h-10 rounded bg-surface-container border border-surface-variant flex-shrink-0 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Moody album cover art with geometric abstract patterns and dark gray gradients bathed in subtle warm studio rim lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZX_6d1XiAgMIAZgXlPmYi-XNCJ6faT-nrttd5AXIBrBFnpAEawYce4i3qAcHsak3AMCjvNdfDgZy9_7abVugy4E5lmL-ZhEZgYfN3AthNRX-rdF60ZYmw9lcWOmIUUPkrQU7fOf3Nbi2oUR7AuXOGma3bimJ8tZX-BFTBeSEwut-UqGmWLIibr8o8imWy0Lc5_gkP4sXF33Mv34Ty3uzDumnbnegVAYJpBkXujqpw8Fc7H1UMb0_F"/>
+</div>
+<!-- Track Info -->
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-body-md text-body-md text-on-surface font-semibold truncate">Nude</span>
+<span class="px-1 py-0.2 bg-surface-container border border-surface-variant rounded font-label-mono-sm text-[8px] text-primary">FLAC 24/96</span>
+</div>
+<p class="font-label-mono-sm text-label-mono-sm text-secondary truncate">Radiohead — In Rainbows</p>
+</div>
+<!-- Mini Transport Controls (min 48dp ergonomics) -->
+<div class="flex items-center gap-1">
+<button aria-label="Previous Track" class="w-9 h-9 flex items-center justify-center text-secondary hover:text-on-surface active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]" data-icon="skip_previous">skip_previous</span>
+</button>
+<!-- Play/Pause Button (48dp active state with lime accent) -->
+<button aria-label="Pause" class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-background active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]" data-icon="pause" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button aria-label="Next Track" class="w-9 h-9 flex items-center justify-center text-secondary hover:text-on-surface active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]" data-icon="skip_next">skip_next</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- BottomNavBar from Shared Components JSON: [Library, Playlists, Search, Settings] -->
+<!-- 'Playlists' is currently ACTIVE per screen identity protocol -->
+<nav aria-label="Main Navigation" class="w-full bg-surface-container flex justify-around items-center px-space-md py-space-xs border-t border-surface-variant select-none">
+<!-- Item 0: Library (Inactive) -->
+<a class="flex flex-col items-center justify-center text-secondary py-space-xs hover:text-on-surface transition-colors active:scale-95 min-w-[56px]" href="#library">
+<span class="material-symbols-outlined text-[22px]" data-icon="library_music">library_music</span>
+<span class="font-label-mono-sm text-label-mono-sm mt-0.5">Library</span>
+</a>
+<!-- Item 1: Playlists (ACTIVE - mapped with style_active_navigation) -->
+<a class="flex flex-col items-center justify-center text-primary py-space-xs hover:text-on-surface transition-colors active:scale-95 min-w-[56px] relative" href="#playlists">
+<span class="material-symbols-outlined text-[22px]" data-icon="queue_music" style="font-variation-settings: 'FILL' 1;">queue_music</span>
+<span class="font-label-mono-sm text-label-mono-sm font-semibold mt-0.5">Playlists</span>
+<span class="w-1 h-1 rounded-full bg-primary-container absolute bottom-0.5"></span>
+</a>
+<!-- Item 2: Search (Inactive) -->
+<a class="flex flex-col items-center justify-center text-secondary py-space-xs hover:text-on-surface transition-colors active:scale-95 min-w-[56px]" href="#search">
+<span class="material-symbols-outlined text-[22px]" data-icon="search">search</span>
+<span class="font-label-mono-sm text-label-mono-sm mt-0.5">Search</span>
+</a>
+<!-- Item 3: Settings (Inactive) -->
+<a class="flex flex-col items-center justify-center text-secondary py-space-xs hover:text-on-surface transition-colors active:scale-95 min-w-[56px]" href="#settings">
+<span class="material-symbols-outlined text-[22px]" data-icon="tune">tune</span>
+<span class="font-label-mono-sm text-label-mono-sm mt-0.5">Settings</span>
+</a>
+</nav>
+<!-- Android Home Navigation Gesture Pill Inset -->
+<div class="w-full bg-surface-container pb-2 pt-1 flex justify-center items-center">
+<div class="w-28 h-1 bg-surface-variant rounded-full"></div>
+</div>
+</div>
+</main>
+<script>
+    // Micro-interactions for playlists cards and controls
+    document.querySelectorAll('[data-icon="more_vert"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Feedback visual on quick options
+        btn.classList.add('text-primary');
+        setTimeout(() => btn.classList.remove('text-primary'), 400);
+      });
+    });
+  </script>
+</body></html>

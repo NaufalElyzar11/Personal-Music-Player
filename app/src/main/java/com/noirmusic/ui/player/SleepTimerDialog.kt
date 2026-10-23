@@ -1,6 +1,13 @@
 package com.noirmusic.ui.player
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +68,13 @@ fun SleepTimerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(16.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+            shape = RoundedCornerShape(16.dp),
+        ),
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -74,6 +88,7 @@ fun SleepTimerDialog(
                 Text(
                     text = "Timer Tidur",
                     style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -94,29 +109,58 @@ fun SleepTimerDialog(
                             String.format(Locale.getDefault(), "%02d:%02d tersisa", min, sec)
                         }
 
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        // Active Countdown Studio Banner (Stitch Screen 7)
+                        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                        val dotAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.3f,
+                            targetValue = 1.0f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(durationMillis = 800),
+                                repeatMode = RepeatMode.Reverse,
                             ),
-                            shape = RoundedCornerShape(16.dp),
+                            label = "dotAlpha",
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
+                                    .padding(14.dp),
                             ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.primary.copy(alpha = dotAlpha),
+                                                CircleShape,
+                                            ),
+                                    )
+                                    Text(
+                                        text = "ACTIVE COUNTDOWN",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
                                 Text(
                                     text = if (state.isEndOfTrack) "Selesai Lagu Ini" else statusText,
-                                    style = MaterialTheme.typography.headlineSmall,
+                                    style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                                 if (!state.isEndOfTrack) {
-                                    Spacer(Modifier.height(4.dp))
+                                    Spacer(Modifier.height(2.dp))
                                     Text(
-                                        text = "Musik akan otomatis berhenti",
+                                        text = "Musik akan otomatis berhenti secara bertahap",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -124,24 +168,48 @@ fun SleepTimerDialog(
                             }
                         }
 
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(14.dp))
 
                         if (!state.isEndOfTrack) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                OutlinedButton(
-                                    onClick = { onAddMinutes(5) },
-                                    modifier = Modifier.weight(1f),
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onAddMinutes(5) }
+                                        .padding(vertical = 10.dp),
                                 ) {
-                                    Text("+5 Menit")
+                                    Text(
+                                        text = "+5 Menit",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
                                 }
-                                OutlinedButton(
-                                    onClick = { onAddMinutes(15) },
-                                    modifier = Modifier.weight(1f),
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onAddMinutes(15) }
+                                        .padding(vertical = 10.dp),
                                 ) {
-                                    Text("+15 Menit")
+                                    Text(
+                                        text = "+15 Menit",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    )
                                 }
                             }
                             Spacer(Modifier.height(10.dp))
@@ -153,9 +221,10 @@ fun SleepTimerDialog(
                                 onDismiss()
                             },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError,
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
                             ),
+                            shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text("Matikan Timer")
@@ -197,32 +266,50 @@ fun SleepTimerDialog(
                             }
                         } else {
                             Text(
-                                text = "Pilih durasi sebelum musik otomatis berhenti:",
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = "QUICK PRESETS",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(8.dp))
 
-                            val options = listOf(
-                                "15 Menit" to 15,
-                                "30 Menit" to 30,
-                                "45 Menit" to 45,
-                                "60 Menit" to 60,
-                            )
-
-                            options.forEach { (label, minutes) ->
-                                TimerOptionRow(label = label) {
-                                    onStartTimer(minutes)
-                                    onDismiss()
+                            // Grid chips 15, 30, 45, 60 mins per Stitch Screen 7
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(15, 30, 45, 60).forEach { mins ->
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainer,
+                                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clickable {
+                                                onStartTimer(mins)
+                                                onDismiss()
+                                            }
+                                            .padding(vertical = 10.dp),
+                                    ) {
+                                        Text(
+                                            text = "$mins m",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        )
+                                    }
                                 }
                             }
+
+                            Spacer(Modifier.height(12.dp))
 
                             TimerOptionRow(label = "Selesai lagu ini") {
                                 onStartEndOfTrack()
                                 onDismiss()
                             }
 
-                            TimerOptionRow(label = "Kustom...") {
+                            TimerOptionRow(label = "Kustom menit...") {
                                 showCustomInput = true
                             }
                         }

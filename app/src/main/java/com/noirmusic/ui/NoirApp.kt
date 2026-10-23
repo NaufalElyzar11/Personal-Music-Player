@@ -140,6 +140,7 @@ fun NoirApp(
                     onStartSleepTimerEndOfTrack = playerViewModel::startSleepTimerEndOfTrack,
                     onAddSleepTimerMinutes = playerViewModel::addSleepTimerMinutes,
                     onCancelSleepTimer = playerViewModel::cancelSleepTimer,
+                    onSkipToQueueItem = playerViewModel::skipToQueueItem,
                     onAddToPlaylist = currentTrack?.let { track ->
                         { trackToAddFromNowPlaying = track }
                     },

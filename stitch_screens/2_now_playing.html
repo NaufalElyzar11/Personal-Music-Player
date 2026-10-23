@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Noir Music - Now Playing</title>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Geist Font (matches typography tokens) -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#333534",
+            "on-primary-fixed-variant": "#394d00",
+            "on-primary-fixed": "#151f00",
+            "tertiary": "#e6eae4",
+            "inverse-on-surface": "#2f3130",
+            "error-container": "#93000a",
+            "on-secondary": "#2b322b",
+            "primary-fixed-dim": "#b2d264",
+            "background": "#121413",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#dee4db",
+            "surface-container-lowest": "#0d0f0e",
+            "inverse-surface": "#e2e3e0",
+            "error": "#ffb4ab",
+            "on-tertiary": "#2d322d",
+            "secondary-fixed-dim": "#c2c8bf",
+            "outline-variant": "#454839",
+            "on-error": "#690005",
+            "secondary-container": "#424941",
+            "on-background": "#e2e3e0",
+            "primary": "#d4f683",
+            "on-tertiary-fixed": "#181d19",
+            "on-secondary-fixed": "#171d17",
+            "surface-dim": "#121413",
+            "surface-container-highest": "#333534",
+            "on-primary-container": "#465f00",
+            "on-surface": "#e2e3e0",
+            "surface-container-high": "#282a29",
+            "inverse-primary": "#4d6700",
+            "on-primary": "#263500",
+            "tertiary-fixed-dim": "#c3c8c2",
+            "on-tertiary-fixed-variant": "#434843",
+            "tertiary-fixed": "#dfe4dd",
+            "primary-container": "#b8d96a",
+            "on-secondary-fixed-variant": "#424941",
+            "surface-bright": "#383a38",
+            "primary-fixed": "#cdef7d",
+            "on-secondary-container": "#b0b7ae",
+            "surface": "#121413",
+            "on-surface-variant": "#c5c8b4",
+            "surface-container-low": "#1a1c1b",
+            "surface-tint": "#b2d264",
+            "secondary": "#c2c8bf",
+            "on-tertiary-container": "#535853",
+            "outline": "#8f9380",
+            "surface-container": "#1e201f",
+            "tertiary-container": "#c9cec8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem"
+          },
+          "fontFamily": {
+            "label-mono-sm": ["Geist Mono", "Geist", "monospace"],
+            "body-lg": ["Geist", "sans-serif"],
+            "label-mono": ["Geist Mono", "Geist", "monospace"],
+            "body-md": ["Geist", "sans-serif"],
+            "headline-lg-mobile": ["Geist", "sans-serif"],
+            "headline-lg": ["Geist", "sans-serif"],
+            "headline-sm": ["Geist", "sans-serif"],
+            "headline-md": ["Geist", "sans-serif"]
+          },
+          "fontSize": {
+            "label-mono-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "500" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-mono": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .material-symbols-outlined.fill-active {
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+    }
+    /* Prevent accidental text highlight on tactile knobs and buttons */
+    .touch-manipulate {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface min-h-screen flex items-center justify-center p-0 md:p-6 select-none font-body-md antialiased selection:bg-primary-container selection:text-on-primary-fixed">
+<!-- Mobile Viewport Canvas Container: 390px native Android boundary -->
+<main class="w-full max-w-[390px] h-screen max-h-[844px] bg-surface flex flex-col justify-between relative overflow-hidden shadow-2xl border border-surface-variant/40 md:rounded-xl">
+<!-- Top Status Bar & Navigation Tier -->
+<header class="w-full pt-2 px-space-md z-30 shrink-0">
+<!-- Android System Status Bar Simulation (Clean studio precision) -->
+<div class="w-full flex items-center justify-between text-secondary py-1 font-label-mono-sm text-label-mono-sm opacity-80">
+<span>09:41</span>
+<div class="flex items-center space-x-2">
+<span class="text-[9px] px-1 py-0.5 rounded bg-surface-container-high text-primary font-medium tracking-tight">BIT-PERFECT</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[14px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[14px]">battery_full</span>
+</div>
+</div>
+<!-- Top Navigation Header (Modal Collapse & Studio Overflow) -->
+<div class="flex items-center justify-between mt-2 h-12">
+<!-- Collapse to Mini-Player button (48dp target) -->
+<button aria-label="Collapse now playing to mini-player" class="w-12 h-12 flex items-center justify-center rounded text-secondary hover:text-on-surface active:opacity-75 transition-colors focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[24px]">expand_more</span>
+</button>
+<!-- Center Context Label -->
+<div class="flex flex-col items-center justify-center text-center px-2">
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase tracking-widest">PLAYING FROM LIBRARY</span>
+<span class="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight truncate max-w-[200px]">In Rainbows</span>
+</div>
+<!-- Overflow Menu Button (48dp target) -->
+<button aria-label="Audio options, sleep timer, equalizer" class="w-12 h-12 flex items-center justify-center rounded text-secondary hover:text-on-surface active:opacity-75 transition-colors focus:outline-none touch-manipulate" id="menu-btn">
+<span class="material-symbols-outlined text-[22px]">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Center Content: Album Canvas, Telemetry & Track Info -->
+<section class="flex-1 flex flex-col items-center justify-center px-space-md py-space-xs z-10 w-full overflow-hidden">
+<!-- Album Artwork Card (Tactile Studio Chassis) -->
+<div class="relative w-[280px] h-[280px] sm:w-[296px] sm:h-[296px] shrink-0 rounded-xl overflow-hidden border border-surface-variant bg-surface-container-low shadow-lg">
+<img class="w-full h-full object-cover select-none" data-alt="An abstract cinematic high-contrast vinyl record cover artwork featuring swirling cosmic spectrum patterns of incandescent orange, warm amber, deep charcoal and vibrant muted lime green. The aesthetic embodies tactile analog mastering tape textures, clean studio precision lighting, and modern Swiss minimalist layout vibes." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC2i2ay3tkVnuVcD1Vkri8gWXL2zZ8kYUMG8x9ZMRYVTdee4jc3MGDDxPrFw2czyKBODJi3PkGCyD4bJC_twAvKjfkttdEGkmzb1-DK7aJvGOA33S5X2WFhbpcYGtlNvlvnuJIfSYGrEj1g4YltTLa_PO1DObyj9R3u0NU0f-1GhpoPr3-XapDDJrDEMTxygulNc4ZPnXSGwJyKMVG2IA6v3FcRZTLUV1I2ZiJbhOf418f4CL4lSyuk"/>
+<!-- Hairline sheen overlay -->
+<div class="absolute inset-0 border border-white/5 rounded-xl pointer-events-none"></div>
+</div>
+<!-- Hi-Fi Audio Telemetry Chip -->
+<div class="mt-4 flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container-low border border-surface-variant/80">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary font-medium tracking-wide">FLAC 96kHz / 24-bit • 2840 kbps • Bit-perfect</span>
+</div>
+<!-- Track Details & Favorite Toggle Row -->
+<div class="w-full flex items-center justify-between mt-5 px-1">
+<div class="flex flex-col justify-center text-left truncate mr-3">
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-semibold tracking-tight truncate leading-tight">Nude</h1>
+<p class="font-body-md text-body-md text-secondary tracking-normal mt-0.5 truncate">Radiohead</p>
+</div>
+<!-- Heart / Favorite Button (48dp target) -->
+<button aria-label="Mark song as favorite" class="w-12 h-12 shrink-0 flex items-center justify-center rounded-lg text-primary-container active:scale-90 transition-transform focus:outline-none touch-manipulate" id="fav-btn">
+<span class="material-symbols-outlined text-[24px] fill-active" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+</div>
+<!-- Scrubber & Precise Timestamp Display -->
+<div class="w-full mt-4 px-1">
+<!-- Interactive Progress Rail -->
+<div class="relative w-full h-6 flex items-center cursor-pointer group" id="scrubber-bar">
+<!-- Background Track Rail -->
+<div class="w-full h-[3px] bg-surface-container-high rounded-full overflow-hidden relative">
+<!-- Active Fill -->
+<div class="h-full bg-primary-container w-[52%]"></div>
+</div>
+<!-- Tactile Scrubber Thumb -->
+<div class="absolute left-[52%] -translate-x-1/2 w-3 h-3 bg-primary-container rounded-full group-hover:scale-125 transition-transform duration-150"></div>
+</div>
+<!-- Timestamps Labels -->
+<div class="flex justify-between items-center font-label-mono text-label-mono text-secondary px-0.5 -mt-1">
+<span>02:14</span>
+<span>-02:01</span>
+</div>
+</div>
+<!-- Main Playback Transport Controls (Studio Grade 48dp+ Targets) -->
+<div class="w-full flex items-center justify-between mt-3 px-2">
+<!-- Shuffle Button (Active with dot indicator) -->
+<div class="flex flex-col items-center justify-center">
+<button aria-label="Shuffle enabled" class="w-12 h-12 flex items-center justify-center text-primary-container active:scale-95 transition-transform focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[22px]">shuffle</span>
+</button>
+<span class="w-1 h-1 rounded-full bg-primary-container -mt-1"></span>
+</div>
+<!-- Previous Track Button -->
+<button aria-label="Previous track" class="w-12 h-12 flex items-center justify-center text-secondary hover:text-on-surface active:opacity-75 transition-colors focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[26px]">skip_previous</span>
+</button>
+<!-- Primary Play/Pause Knob Container -->
+<button aria-label="Pause playback" class="w-14 h-14 rounded-full bg-surface-container-low border border-primary-container/80 text-on-surface flex items-center justify-center shadow-md active:scale-95 transition-transform focus:outline-none touch-manipulate group" id="play-pause-btn">
+<div class="w-11 h-11 rounded-full bg-primary-container flex items-center justify-center text-on-primary-fixed">
+<span class="material-symbols-outlined text-[24px] fill-active" style="font-variation-settings: 'FILL' 1;">pause</span>
+</div>
+</button>
+<!-- Next Track Button -->
+<button aria-label="Next track" class="w-12 h-12 flex items-center justify-center text-secondary hover:text-on-surface active:opacity-75 transition-colors focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[26px]">skip_next</span>
+</button>
+<!-- Repeat Button (Off / Inactive state) -->
+<div class="flex flex-col items-center justify-center">
+<button aria-label="Repeat off" class="w-12 h-12 flex items-center justify-center text-secondary hover:text-on-surface active:scale-95 transition-transform focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[22px]">repeat</span>
+</button>
+<span class="w-1 h-1 rounded-full bg-transparent -mt-1"></span>
+</div>
+</div>
+</section>
+<!-- Bottom Action Row & Quick Drawers -->
+<footer class="w-full px-space-md pb-2 z-20 shrink-0">
+<div class="w-full flex items-center justify-between pt-2 border-t border-surface-variant/40">
+<!-- Sleep Timer Indicator Badge -->
+<button aria-label="Sleep timer active: 45 minutes remaining" class="h-10 px-2.5 flex items-center gap-1.5 rounded bg-surface-container-low border border-surface-variant hover:border-outline text-secondary hover:text-on-surface transition-colors focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[16px]">bedtime</span>
+<span class="font-label-mono-sm text-label-mono-sm font-semibold tracking-wider text-primary">45m</span>
+</button>
+<!-- Lyrics Quick Peek Action -->
+<button aria-label="Open synchronized lyrics sheet" class="h-10 px-4 rounded-full bg-surface-container border border-surface-variant/90 hover:border-primary-container/60 text-secondary hover:text-on-surface flex items-center gap-1.5 transition-colors active:scale-95 touch-manipulate focus:outline-none shadow-sm">
+<span class="font-label-mono-sm text-label-mono-sm tracking-widest font-semibold uppercase">LYRICS</span>
+<span class="material-symbols-outlined text-[16px]">keyboard_arrow_up</span>
+</button>
+<!-- Playback Queue Drawer Button -->
+<button aria-label="Open up next queue with 14 tracks" class="h-10 px-2.5 flex items-center gap-1.5 rounded bg-surface-container-low border border-surface-variant hover:border-outline text-secondary hover:text-on-surface transition-colors focus:outline-none touch-manipulate">
+<span class="material-symbols-outlined text-[16px]">queue_music</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary font-medium tracking-tight">14</span>
+</button>
+</div>
+<!-- Android Dynamic Gesture Home Pill Navigation Inset -->
+<div class="w-full flex justify-center items-center py-2.5">
+<div class="w-32 h-1 bg-surface-variant rounded-full opacity-60"></div>
+</div>
+</footer>
+<!-- Equalizer / Options Telemetry Dropdown Drawer Modal (Hidden by default, interactive) -->
+<div class="absolute inset-x-0 bottom-0 bg-surface-container border-t border-surface-variant rounded-t-xl p-space-md z-40 transform translate-y-full transition-transform duration-200 ease-out shadow-2xl" id="options-sheet">
+<div class="w-8 h-1 bg-surface-variant rounded-full mx-auto mb-4"></div>
+<div class="flex items-center justify-between pb-3 border-b border-surface-variant">
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-semibold">Track Master Telemetry</h2>
+<button class="text-secondary hover:text-on-surface" id="close-sheet">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<div class="py-3 space-y-2.5 font-label-mono-sm text-label-mono-sm text-secondary">
+<div class="flex justify-between items-center py-1">
+<span>SOURCE FILE:</span>
+<span class="text-on-surface font-medium">03. Nude.flac</span>
+</div>
+<div class="flex justify-between items-center py-1">
+<span>CONTAINER:</span>
+<span class="text-on-surface font-medium">Free Lossless Audio Codec</span>
+</div>
+<div class="flex justify-between items-center py-1">
+<span>CHANNELS / RES:</span>
+<span class="text-primary font-medium">2ch Stereo • 24-bit / 96kHz</span>
+</div>
+<div class="flex justify-between items-center py-1">
+<span>DSP / EQ:</span>
+<span class="text-on-surface font-medium">Direct Stream (Bypass On)</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Lightweight Micro-Interaction Engine -->
+<script>
+    const menuBtn = document.getElementById('menu-btn');
+    const closeSheet = document.getElementById('close-sheet');
+    const sheet = document.getElementById('options-sheet');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const favBtn = document.getElementById('fav-btn');
+
+    let isPlaying = true;
+    let isFav = true;
+
+    menuBtn.addEventListener('click', () => {
+      sheet.classList.remove('translate-y-full');
+    });
+
+    closeSheet.addEventListener('click', () => {
+      sheet.classList.add('translate-y-full');
+    });
+
+    playPauseBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      const innerIcon = playPauseBtn.querySelector('.material-symbols-outlined');
+      if (isPlaying) {
+        innerIcon.textContent = 'pause';
+      } else {
+        innerIcon.textContent = 'play_arrow';
+      }
+    });
+
+    favBtn.addEventListener('click', () => {
+      isFav = !isFav;
+      const icon = favBtn.querySelector('.material-symbols-outlined');
+      if (isFav) {
+        favBtn.classList.remove('text-secondary');
+        favBtn.classList.add('text-primary-container');
+        icon.style.fontVariationSettings = "'FILL' 1";
+      } else {
+        favBtn.classList.remove('text-primary-container');
+        favBtn.classList.add('text-secondary');
+        icon.style.fontVariationSettings = "'FILL' 0";
+      }
+    });
+  </script>
+</body></html>

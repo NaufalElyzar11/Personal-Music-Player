@@ -239,6 +239,13 @@ class PlayerViewModel(
         positionInvalidations.tryEmit(Unit)
     }
 
+    fun skipToQueueItem(index: Int) = withController { c ->
+        if (index in 0 until c.mediaItemCount) {
+            c.seekToDefaultPosition(index)
+            c.play()
+        }
+    }
+
     fun toggleShuffle() = withController { c ->
         c.shuffleModeEnabled = !c.shuffleModeEnabled
     }
@@ -258,6 +265,13 @@ class PlayerViewModel(
         val current = p.currentMediaItem?.toNowPlaying()
         val playerDuration = p.duration.takeIf { it > 0 }
         val durationMs = playerDuration ?: current?.durationMs ?: 0L
+        val queueItems = try {
+            (0 until p.mediaItemCount).mapNotNull { idx ->
+                p.getMediaItemAt(idx).toNowPlaying()
+            }
+        } catch (_: Throwable) {
+            emptyList()
+        }
         _playbackState.value = PlaybackUiState(
             isConnected = true,
             nowPlaying = current,
@@ -272,6 +286,7 @@ class PlayerViewModel(
             repeatMode = p.repeatMode,
             queueIndex = if (p.mediaItemCount > 0) p.currentMediaItemIndex else -1,
             queueSize = p.mediaItemCount,
+            queue = queueItems,
             errorMessage = p.playerError?.let { it.localizedMessage ?: it.errorCodeName },
         )
     }

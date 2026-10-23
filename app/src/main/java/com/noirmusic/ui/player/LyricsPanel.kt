@@ -125,9 +125,9 @@ private fun SyncedLyricsView(
                 val isActive = index == activeIndex
                 val color by animateColorAsState(
                     targetValue = if (isActive) {
-                        MaterialTheme.colorScheme.onBackground
+                        MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                     },
                     label = "lyricColor",
                 )

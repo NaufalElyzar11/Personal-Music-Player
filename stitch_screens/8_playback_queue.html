@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Playback Queue - Noir Music</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#333534",
+            "on-primary-fixed-variant": "#394d00",
+            "on-primary-fixed": "#151f00",
+            "tertiary": "#e6eae4",
+            "inverse-on-surface": "#2f3130",
+            "error-container": "#93000a",
+            "on-secondary": "#2b322b",
+            "primary-fixed-dim": "#b2d264",
+            "background": "#121413",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#dee4db",
+            "surface-container-lowest": "#0d0f0e",
+            "inverse-surface": "#e2e3e0",
+            "error": "#ffb4ab",
+            "on-error": "#690005",
+            "secondary-container": "#424941",
+            "on-background": "#e2e3e0",
+            "primary": "#d4f683",
+            "on-tertiary-fixed": "#181d19",
+            "on-secondary-fixed": "#171d17",
+            "surface-dim": "#121413",
+            "surface-container-highest": "#333534",
+            "on-primary-container": "#465f00",
+            "on-surface": "#e2e3e0",
+            "surface-container-high": "#282a29",
+            "inverse-primary": "#4d6700",
+            "on-primary": "#263500",
+            "tertiary-fixed-dim": "#c3c8c2",
+            "on-tertiary-fixed-variant": "#434843",
+            "tertiary-fixed": "#dfe4dd",
+            "primary-container": "#b8d96a",
+            "on-secondary-fixed-variant": "#424941",
+            "surface-bright": "#383a38",
+            "primary-fixed": "#cdef7d",
+            "on-secondary-container": "#b0b7ae",
+            "surface": "#121413",
+            "on-surface-variant": "#c5c8b4",
+            "surface-container-low": "#1a1c1b",
+            "surface-tint": "#b2d264",
+            "secondary": "#c2c8bf",
+            "on-tertiary-container": "#535853",
+            "outline": "#8f9380",
+            "surface-container": "#1e201f",
+            "tertiary-container": "#c9cec8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem"
+          },
+          "fontFamily": {
+            "label-mono-sm": ["Geist"],
+            "body-lg": ["Geist"],
+            "label-mono": ["Geist"],
+            "body-md": ["Geist"],
+            "headline-lg-mobile": ["Geist"],
+            "headline-lg": ["Geist"],
+            "headline-sm": ["Geist"],
+            "headline-md": ["Geist"]
+          },
+          "fontSize": {
+            "label-mono-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "500" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-mono": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    /* Dynamic Equalizer Bar Animations */
+    @keyframes eq1 { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+    @keyframes eq2 { 0%, 100% { height: 14px; } 50% { height: 6px; } }
+    @keyframes eq3 { 0%, 100% { height: 8px; } 50% { height: 18px; } }
+    .eq-bar-1 { animation: eq1 0.8s ease-in-out infinite; }
+    .eq-bar-2 { animation: eq2 0.6s ease-in-out infinite; }
+    .eq-bar-3 { animation: eq3 0.9s ease-in-out infinite; }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased flex justify-center selection:bg-primary-container selection:text-on-primary-fixed min-h-screen">
+<!-- Mobile Portrait Shell (390px bounded for authentic device simulation) -->
+<div class="w-full max-w-[390px] bg-background min-h-screen flex flex-col relative overflow-x-hidden border-x border-surface-variant/40 shadow-2xl">
+<!-- Top System Sheet Drag Affordance & Status Bar -->
+<header class="sticky top-0 z-40 bg-background/95 backdrop-blur-md pt-space-xs px-space-md">
+<!-- Drag handle indicating modal sheet presentation -->
+<div class="w-full flex justify-center py-1">
+<div class="w-8 h-1 bg-surface-variant rounded-full"></div>
+</div>
+<!-- Android Status Bar Telemetry -->
+<div class="h-6 flex items-center justify-between text-secondary font-label-mono-sm text-label-mono-sm pt-0.5 pb-1">
+<span>09:41</span>
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[14px]">battery_full</span>
+</div>
+</div>
+<!-- App Header Bar -->
+<div class="flex items-center justify-between py-space-sm">
+<div class="flex items-center gap-space-sm">
+<button aria-label="Dismiss queue sheet" class="w-10 h-10 -ml-2 rounded flex items-center justify-center text-secondary hover:text-on-surface active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[24px]">keyboard_arrow_down</span>
+</button>
+<div>
+<h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight">Playback Queue</h1>
+<p class="font-label-mono-sm text-label-mono-sm text-secondary">14 tracks • 54 min</p>
+</div>
+</div>
+<!-- Clear Queue Action -->
+<button aria-label="Clear all tracks in queue" class="flex items-center gap-1 px-space-sm py-1 rounded bg-surface-container border border-surface-variant text-secondary hover:text-primary active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">clear_all</span>
+<span class="font-label-mono-sm text-label-mono-sm">Clear</span>
+</button>
+</div>
+</header>
+<!-- Main Scrollable Content Canvas -->
+<main class="flex-1 px-space-md pb-36 pt-space-xs space-y-space-md overflow-y-auto">
+<!-- SECTION: NOW PLAYING -->
+<section>
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase tracking-wider font-semibold">Now Playing</span>
+<span class="font-label-mono-sm text-label-mono-sm text-primary flex items-center gap-1">
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+            ACTIVE 24/96
+          </span>
+</div>
+<!-- Highlighted Active Card with Studio Precision Style -->
+<div class="bg-surface-container rounded-lg p-space-sm border-l-2 border-l-primary-container border-y border-r border-surface-variant flex items-center gap-space-sm">
+<!-- Album Thumbnail -->
+<div class="relative w-14 h-14 rounded bg-surface-container-high overflow-hidden shrink-0">
+<img class="w-full h-full object-cover" data-alt="Intricate geometric abstract digital artwork representing contemporary art with rich tones of crimson, burnt amber, and obsidian on deep charcoal background with minimal high fidelity visual accents in muted lime." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFr_j0yavKnJfQSVzWLFCpasMvvDxRhPmeW_SD7wGLI2Q-OJeASa2XxP2NGFQ-Py3pM0gOH2a0QjfXU0Qz_QMXcq_RK6GL4QmMZ9uNBli2qFysnLuFfFubs-yHoQAPZuGslppqvExI3tzTmMu11tjDnpXMDudOzz2DGlPUFhx9TZYq1D9Ls265aLh7CJQOulhHAG-l2K1hBi1XtPvtjgpOwC1moCSmXYfKrbp_8ovSpTnfAQ3UHNCs"/>
+<div class="absolute inset-0 bg-background/20 backdrop-contrast-125"></div>
+</div>
+<!-- Active Info -->
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-body-lg text-body-lg text-primary font-medium truncate">Nude</span>
+<span class="px-1 py-0.2 bg-background border border-surface-variant font-label-mono-sm text-label-mono-sm text-secondary">FLAC</span>
+</div>
+<p class="font-body-md text-body-md text-secondary truncate">Radiohead — In Rainbows</p>
+<p class="font-label-mono-sm text-label-mono-sm text-secondary mt-0.5 tabular-nums">02:14 / 04:15</p>
+</div>
+<!-- Animated Audio Visualizer Bars -->
+<div aria-label="Equalizer playing indicator" class="w-8 h-8 flex items-end justify-center gap-1 px-1 py-1 shrink-0">
+<span class="w-1 bg-primary-container rounded-full eq-bar-1"></span>
+<span class="w-1 bg-primary-container rounded-full eq-bar-2"></span>
+<span class="w-1 bg-primary-container rounded-full eq-bar-3"></span>
+</div>
+</div>
+</section>
+<!-- SECTION: UP NEXT -->
+<section>
+<!-- Header & Instruction Subtitle -->
+<div class="border-b border-surface-variant pb-space-xs mb-space-xs">
+<div class="flex items-center justify-between">
+<h2 class="font-label-mono-sm text-label-mono-sm text-secondary uppercase tracking-wider font-semibold">Up Next</h2>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary">Auto-queue enabled</span>
+</div>
+<p class="font-label-mono-sm text-label-mono-sm text-secondary/70 mt-0.5">Drag handle to reorder • Swipe to remove</p>
+</div>
+<!-- Reorderable Track List -->
+<div class="space-y-0.5 divide-y divide-surface-variant/60">
+<!-- Item 1 -->
+<div class="group flex items-center h-14 py-space-xs hover:bg-surface-container/50 active:bg-surface-container rounded transition-colors px-1">
+<button aria-label="Reorder track Motion Picture Soundtrack" class="w-7 h-10 flex items-center justify-center text-secondary/60 hover:text-on-surface cursor-grab active:cursor-grabbing shrink-0">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</button>
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden shrink-0 mx-2">
+<img class="w-full h-full object-cover" data-alt="Abstract textured architectural surface with subtle deep gray stone gradients and monochromatic studio lighting, embodying a refined minimalist and industrial aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9PSjHV3M3afxXVWQq2SAh84CzH4vYuD_fIm5jOW6Z0ZkAaM9G5Psh15oy8EnvipUfJxVQMDWKLJlCAHWc1oDpHqW8fZMq2bvZR-lyZuXwQVBaO70ReBgsmFU_-nSvLJgYRH741Ucl13e3iFlJSOrjtuF1JRZCKD9Krrb5cyPSuFHFiKUEStZWmYeia3pjmasoxXiA483d7in9LLzSrdhRl821iw4obISHfPWbzfMyFZIqlGanel7c"/>
+</div>
+<div class="flex-1 min-w-0 pr-2">
+<p class="font-body-lg text-body-lg text-on-surface truncate">Motion Picture Soundtrack</p>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-body-md text-secondary truncate">Radiohead</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary/80">FLAC</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-secondary tabular-nums mr-2">3:20</span>
+<button aria-label="Remove Motion Picture Soundtrack from queue" class="w-8 h-8 rounded flex items-center justify-center text-secondary/50 hover:text-error active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Item 2 -->
+<div class="group flex items-center h-14 py-space-xs hover:bg-surface-container/50 active:bg-surface-container rounded transition-colors px-1">
+<button aria-label="Reorder track Teardrop" class="w-7 h-10 flex items-center justify-center text-secondary/60 hover:text-on-surface cursor-grab active:cursor-grabbing shrink-0">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</button>
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden shrink-0 mx-2">
+<img class="w-full h-full object-cover" data-alt="Dark macro fluid photography with subtle organic textures in obsidian charcoal and deep slate grey illuminated by subtle cinematic rim lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqrooqJ85sFOcs4GpdKXwD3zbOtj4qR12IxSsjjnpi-DFPxm6Wz4XVyPE6J866OmKzqt2ghKckbuJpDjpL1PZAnVPQM_rVvbfzeGX4XzQJPjMPjCt7K_SGgljxgbluGOM0GL8i13NA47K2QXBvvNnQllrRlTr58B4UesoUXb8BXFEXCmxXoti00HFenrCGuOzKHOWCzJcFw9bt77BGShCPLxPYiZM9azKBiEoXKxhmzmf1b0eCy1TE"/>
+</div>
+<div class="flex-1 min-w-0 pr-2">
+<p class="font-body-lg text-body-lg text-on-surface truncate">Teardrop</p>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-body-md text-secondary truncate">Massive Attack</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary/80">FLAC</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-secondary tabular-nums mr-2">5:31</span>
+<button aria-label="Remove Teardrop from queue" class="w-8 h-8 rounded flex items-center justify-center text-secondary/50 hover:text-error active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Item 3 -->
+<div class="group flex items-center h-14 py-space-xs hover:bg-surface-container/50 active:bg-surface-container rounded transition-colors px-1">
+<button aria-label="Reorder track Resonance" class="w-7 h-10 flex items-center justify-center text-secondary/60 hover:text-on-surface cursor-grab active:cursor-grabbing shrink-0">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</button>
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden shrink-0 mx-2">
+<img class="w-full h-full object-cover" data-alt="Retro-futuristic synthwave horizon represented in stark minimal dark mode styling with faint wireframe geometric lines and deep charcoal gradients." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEokVclIw7TPRBpJQG2bUe-IEZPOebPR03DvJt5KChcTwLwPvSUDf7BzsnsTC_ZAAg6ohIB11M8dLeaYhPTrKzkZal8v5c1oGHZ9h-GU4Sbgc0Joq8pRzuLsiIcRVFv0rcCTqbpI3V1eAThbdtXc66Xv4uIWaEJYVhI2pr2F7tzcp-Tu_T4BMC3Ulh6jcMJxZp49WmoEMkR0_2UijS6N7Db6quSj4c2YvXFDpBff9guFfHRZWkg-SW"/>
+</div>
+<div class="flex-1 min-w-0 pr-2">
+<p class="font-body-lg text-body-lg text-on-surface truncate">Resonance</p>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-body-md text-secondary truncate">HOME</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary/80">FLAC</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-secondary tabular-nums mr-2">3:32</span>
+<button aria-label="Remove Resonance from queue" class="w-8 h-8 rounded flex items-center justify-center text-secondary/50 hover:text-error active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Item 4 -->
+<div class="group flex items-center h-14 py-space-xs hover:bg-surface-container/50 active:bg-surface-container rounded transition-colors px-1">
+<button aria-label="Reorder track Midnight City" class="w-7 h-10 flex items-center justify-center text-secondary/60 hover:text-on-surface cursor-grab active:cursor-grabbing shrink-0">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</button>
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden shrink-0 mx-2">
+<img class="w-full h-full object-cover" data-alt="High contrast nocturnal urban cityscape shot from high angle with long exposure motion trails against dense deep black background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDslAiuHNHfUdRXGudaTMWvlnu_tHN9GGvp96anBMheRx5wSpu1JvaXcOdVP6nF2K8B96VsD6ufotM4WDVr4LfnCVXf35_cA75uP-6EmHxweRgVa_q8gmRNwmtZW8rQ97pOlmdh39LTpl4FwaCEGd_r94AZyhnA7357Ry4lhQK0icGRPvS5szZOFbV_0jq5qm9ZzLgwqiEhyzvLBdkfx4edDzHyDwKlIYKgGicG7EarMSFyTpsFc3y3"/>
+</div>
+<div class="flex-1 min-w-0 pr-2">
+<p class="font-body-lg text-body-lg text-on-surface truncate">Midnight City</p>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-body-md text-secondary truncate">M83</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary/80">MP3 320k</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-secondary tabular-nums mr-2">4:03</span>
+<button aria-label="Remove Midnight City from queue" class="w-8 h-8 rounded flex items-center justify-center text-secondary/50 hover:text-error active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Item 5 -->
+<div class="group flex items-center h-14 py-space-xs hover:bg-surface-container/50 active:bg-surface-container rounded transition-colors px-1">
+<button aria-label="Reorder track Windowlicker" class="w-7 h-10 flex items-center justify-center text-secondary/60 hover:text-on-surface cursor-grab active:cursor-grabbing shrink-0">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</button>
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden shrink-0 mx-2">
+<img class="w-full h-full object-cover" data-alt="Experimental digital sculpture with angular polished chrome reflections distorted over deep graphite matte planar surfaces in high resolution." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDA0UR2asmOA7MkZmujd5kcYcgloA_uhHh2sZgZZ_ZYYzqJwARxKUzv0FdLE74cjwqPV5LqbBG5OpiSsp5QbyHDtrZNFU_Z2OYjMq1T7GJEHtZOAV7BwK-hDzl17h78YHQZpGCJW5nnEiPYwiq3pu1c4y1iVdFAVq19uXudUg2JElC2_n--vVULHPibficEgEeM7J_MowgusiUQP-6cbcAQB8BGGfQdjaTI3B9365CS7kVIBmWGpeKI"/>
+</div>
+<div class="flex-1 min-w-0 pr-2">
+<p class="font-body-lg text-body-lg text-on-surface truncate">Windowlicker</p>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-body-md text-secondary truncate">Aphex Twin</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary/80">WAV PCM</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-secondary tabular-nums mr-2">6:07</span>
+<button aria-label="Remove Windowlicker from queue" class="w-8 h-8 rounded flex items-center justify-center text-secondary/50 hover:text-error active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Item 6 -->
+<div class="group flex items-center h-14 py-space-xs hover:bg-surface-container/50 active:bg-surface-container rounded transition-colors px-1">
+<button aria-label="Reorder track Dayvan Cowboy" class="w-7 h-10 flex items-center justify-center text-secondary/60 hover:text-on-surface cursor-grab active:cursor-grabbing shrink-0">
+<span class="material-symbols-outlined text-[18px]">drag_indicator</span>
+</button>
+<div class="w-10 h-10 rounded bg-surface-container-high overflow-hidden shrink-0 mx-2">
+<img class="w-full h-full object-cover" data-alt="Muted analog ocean swell capturing deep sea crests in cold deep charcoal and silvery dusk tones with fine film grain texture." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCI4sdJE1noPl5U1yg8Rwnu5Wvy_FFlFoTgCKXPXzYC9O9WPvgJFoQNnJVR-jELnkflspdXqa3ojFBVi9-kG2OLhMI7iNySnfjZ7POo82gSYwi9qvGBL-XOlGJQW8U78S6g6g41M_67zYSn9G7erl-x2GCDHt9g5e8lhXCr7ZWkV_kN97D0rjlD0suxoqb-NyJ3kORgm4kc2wkZvedfuoRAKATE_TKHBfRXG3rC96ZNgwVGgEc5JTrt"/>
+</div>
+<div class="flex-1 min-w-0 pr-2">
+<p class="font-body-lg text-body-lg text-on-surface truncate">Dayvan Cowboy</p>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-body-md text-secondary truncate">Boards of Canada</span>
+<span class="text-surface-variant">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary/80">FLAC</span>
+</div>
+</div>
+<span class="font-label-mono text-label-mono text-secondary tabular-nums mr-2">5:01</span>
+<button aria-label="Remove Dayvan Cowboy from queue" class="w-8 h-8 rounded flex items-center justify-center text-secondary/50 hover:text-error active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Queue Telemetry & Quick Action Bento Bar -->
+<section class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="bg-surface-container border border-surface-variant p-space-sm rounded">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-mono-sm text-label-mono-sm">PLAYBACK MODE</span>
+<span class="material-symbols-outlined text-[16px]">shuffle</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface font-medium mt-1">Smart Studio Shuffle</p>
+<p class="font-label-mono-sm text-label-mono-sm text-secondary/70">Gapless • ReplayGain on</p>
+</div>
+<div class="bg-surface-container border border-surface-variant p-space-sm rounded">
+<div class="flex items-center justify-between text-secondary">
+<span class="font-label-mono-sm text-label-mono-sm">HARDWARE DAC</span>
+<span class="material-symbols-outlined text-[16px] text-primary">graphic_eq</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface font-medium mt-1">Direct Bit-Perfect</p>
+<p class="font-label-mono-sm text-label-mono-sm text-primary">USB Audio Class 2.0</p>
+</div>
+</section>
+</main>
+<!-- BOTTOM DOCKED PLAYBACK BAR & CONTROLS -->
+<aside class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[390px] z-50 bg-surface-container/95 backdrop-blur-md border-t border-surface-variant px-space-md pt-space-xs pb-6">
+<!-- Mini Scrubber Progress -->
+<div class="w-full mb-space-xs cursor-pointer group">
+<div class="w-full h-[3px] bg-surface-variant rounded-full overflow-hidden relative">
+<!-- 53% Progress -->
+<div class="h-full bg-primary-container w-[53%] rounded-full"></div>
+</div>
+<div class="flex justify-between items-center text-secondary font-label-mono-sm text-label-mono-sm mt-1">
+<span>02:14</span>
+<span class="text-secondary/70">Nude — Radiohead</span>
+<span>-02:01</span>
+</div>
+</div>
+<!-- Docked Playback Transport Controls -->
+<div class="flex items-center justify-between">
+<!-- Left: Shuffle Toggle (Active state indication) -->
+<button aria-label="Shuffle Active" class="w-12 h-12 flex flex-col items-center justify-center text-primary active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">shuffle</span>
+<span class="w-1 h-1 bg-primary rounded-full mt-0.5"></span>
+</button>
+<!-- Center Group: Skip Back, Primary Play/Pause, Skip Next -->
+<div class="flex items-center gap-space-xs">
+<!-- Previous Track -->
+<button aria-label="Previous track" class="w-12 h-12 flex items-center justify-center text-secondary hover:text-on-surface active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[24px]">skip_previous</span>
+</button>
+<!-- Primary Play/Pause (56dp touch target with 48dp container) -->
+<button aria-label="Pause playback" class="w-14 h-14 flex items-center justify-center active:scale-95 transition-transform">
+<div class="w-12 h-12 rounded-full bg-primary-container text-background flex items-center justify-center font-bold">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</div>
+</button>
+<!-- Next Track -->
+<button aria-label="Next track" class="w-12 h-12 flex items-center justify-center text-secondary hover:text-on-surface active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[24px]">skip_next</span>
+</button>
+</div>
+<!-- Right: Repeat Mode Toggle -->
+<button aria-label="Repeat queue" class="w-12 h-12 flex flex-col items-center justify-center text-secondary hover:text-on-surface active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px]">repeat</span>
+<span class="w-1 h-1 bg-transparent rounded-full mt-0.5"></span>
+</button>
+</div>
+<!-- Android Home Navigation Gesture Bar Inset -->
+<div class="w-full flex justify-center pt-2">
+<div class="w-32 h-1 bg-on-surface/40 rounded-full"></div>
+</div>
+</aside>
+</div>
+</body></html>

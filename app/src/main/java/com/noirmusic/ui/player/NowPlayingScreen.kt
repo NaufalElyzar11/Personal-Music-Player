@@ -1,6 +1,9 @@
 package com.noirmusic.ui.player
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
@@ -27,16 +33,15 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,9 +51,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,11 +90,13 @@ fun NowPlayingScreen(
     onAddSleepTimerMinutes: (Int) -> Unit,
     onCancelSleepTimer: () -> Unit,
     onAddToPlaylist: (() -> Unit)? = null,
+    onSkipToQueueItem: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val track = playback.nowPlaying
     val sleepTimerState by sleepTimerStateFlow.collectAsStateWithLifecycle()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showQueueDialog by remember { mutableStateOf(false) }
 
     if (showSleepTimerDialog) {
         SleepTimerDialog(
@@ -100,14 +109,22 @@ fun NowPlayingScreen(
         )
     }
 
+    if (showQueueDialog) {
+        PlaybackQueueDialog(
+            playback = playback,
+            onSkipToQueueItem = onSkipToQueueItem,
+            onDismiss = { showQueueDialog = false },
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
-            .padding(bottom = 24.dp),
+            .padding(bottom = 16.dp),
     ) {
-        // 1. Top row
+        // 1. Top Navigation Bar (Studio Minimalist Header)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -120,90 +137,100 @@ fun NowPlayingScreen(
             ) {
                 Icon(
                     imageVector = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Close player",
+                    contentDescription = "Tutup pemutar musik",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
                 )
             }
+
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "Now playing",
-                    style = MaterialTheme.typography.labelLarge,
+                    text = "MEMUTAR DARI LIBRARY",
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                if (sleepTimerState is SleepTimerState.Active) {
-                    val active = sleepTimerState as SleepTimerState.Active
-                    val timerLabel = if (active.isEndOfTrack) {
-                        "Tidur: selesai lagu"
-                    } else {
-                        val m = active.remainingSec / 60
-                        val s = active.remainingSec % 60
-                        String.format(Locale.getDefault(), "Tidur: %02d:%02d", m, s)
-                    }
-                    Text(
-                        text = timerLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                Text(
+                    text = track?.album ?: "Noir Hi-Fi",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
 
             Row(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (playback.queueSize > 0) {
+                    IconButton(onClick = { showQueueDialog = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = "Buka antrean",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
                 if (onAddToPlaylist != null && track != null) {
                     IconButton(onClick = onAddToPlaylist) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                             contentDescription = "Tambah ke playlist",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
                         )
                     }
-                }
-                IconButton(onClick = { showSleepTimerDialog = true }) {
-                    val isActive = sleepTimerState is SleepTimerState.Active
-                    Icon(
-                        imageVector = Icons.Filled.Bedtime,
-                        contentDescription = "Timer tidur",
-                        tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
         }
 
-        // 2. Cover / Lyrics switch
+        // 2. Cover / Lyrics Tactile Switch
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.widthIn(max = 240.dp)) {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.widthIn(max = 220.dp)) {
                 SegmentedButton(
                     selected = pane == NowPlayingPane.COVER,
                     onClick = { onPaneChange(NowPlayingPane.COVER) },
                     shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        activeContentColor = MaterialTheme.colorScheme.primary,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
                 ) {
-                    Text("Cover")
+                    Text("Cover", fontWeight = if (pane == NowPlayingPane.COVER) FontWeight.SemiBold else FontWeight.Normal)
                 }
                 SegmentedButton(
                     selected = pane == NowPlayingPane.LYRICS,
                     onClick = { onPaneChange(NowPlayingPane.LYRICS) },
                     shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        activeContentColor = MaterialTheme.colorScheme.primary,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
                 ) {
-                    Text("Lyrics")
+                    Text("Lirik", fontWeight = if (pane == NowPlayingPane.LYRICS) FontWeight.SemiBold else FontWeight.Normal)
                 }
             }
         }
 
-        // 3. Content area
+        // 3. Central Content Area (Artwork / Lyrics)
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+                .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
             if (pane == NowPlayingPane.COVER) {
                 CoverPane(
@@ -220,20 +247,21 @@ fun NowPlayingScreen(
             }
         }
 
-        // 4. Title & artist
+        // 4. Title & Artist Info
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp, vertical = 4.dp),
         ) {
             Text(
-                text = track?.title ?: "Nothing playing",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
+                text = track?.title ?: "Tidak ada lagu",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = track?.displayArtist ?: "",
                 style = MaterialTheme.typography.bodyLarge,
@@ -243,9 +271,9 @@ fun NowPlayingScreen(
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
 
-        // 5. Seek bar (only this composable collects positionMs)
+        // 5. Studio Scrubber / Seek Section with Tabular Monospace Timestamps
         SeekSection(
             positionMsFlow = positionMsFlow,
             durationMs = playback.durationMs,
@@ -256,9 +284,9 @@ fun NowPlayingScreen(
         )
 
         if (playback.errorMessage != null) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = "Can't play this file · ${playback.errorMessage}",
+                text = "File tidak dapat diputar · ${playback.errorMessage}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.error,
                 maxLines = 2,
@@ -267,9 +295,9 @@ fun NowPlayingScreen(
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
 
-        // 6. Controls row
+        // 6. Transport Controls (Studio Ergonomics)
         ControlsRow(
             playback = playback,
             onTogglePlayPause = onTogglePlayPause,
@@ -281,6 +309,92 @@ fun NowPlayingScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
         )
+
+        Spacer(Modifier.height(8.dp))
+
+        // 7. Bottom Auxiliary Bar (Sleep Timer Badge & Telemetry)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // Sleep Timer Pill
+            val isTimerActive = sleepTimerState is SleepTimerState.Active
+            val timerText = when (val s = sleepTimerState) {
+                is SleepTimerState.Active -> {
+                    if (s.isEndOfTrack) "Tidur: Akhir lagu"
+                    else {
+                        val m = s.remainingSec / 60
+                        val sec = s.remainingSec % 60
+                        String.format(Locale.getDefault(), "Tidur: %02d:%02d", m, sec)
+                    }
+                }
+                else -> "Timer Tidur"
+            }
+
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        if (isTimerActive) MaterialTheme.colorScheme.surfaceContainerHigh
+                        else MaterialTheme.colorScheme.surfaceContainerLow,
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isTimerActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        else MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .clickable { showSleepTimerDialog = true }
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Bedtime,
+                    contentDescription = "Timer tidur",
+                    tint = if (isTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(15.dp),
+                )
+                Text(
+                    text = timerText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (isTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isTimerActive) FontWeight.SemiBold else FontWeight.Medium,
+                )
+            }
+
+            // Queue count indicator / tactile chip
+            if (playback.queueSize > 0) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable { showQueueDialog = true },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = "Buka antrean",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            text = "${playback.queueIndex + 1} / ${playback.queueSize}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -302,7 +416,8 @@ private fun SeekSection(
         positionMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
     }
     val elapsedText = formatDuration(shownMs)
-    val totalText = if (enabled) formatDuration(durationMs) else "--:--"
+    val remainingMs = (durationMs - shownMs).coerceAtLeast(0L)
+    val remainingText = if (enabled) "-${formatDuration(remainingMs)}" else "--:--"
 
     Column(modifier = modifier) {
         Slider(
@@ -321,27 +436,29 @@ private fun SeekSection(
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics {
                     contentDescription = "Seek"
-                    stateDescription = "$elapsedText of $totalText"
+                    stateDescription = "$elapsedText dari $remainingText"
                 },
         )
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = elapsedText,
-                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = totalText,
-                style = MaterialTheme.typography.labelMedium.copy(fontFeatureSettings = "tnum"),
+                text = remainingText,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -369,87 +486,138 @@ private fun ControlsRow(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(
-            onClick = onToggleShuffle,
-            modifier = Modifier.size(48.dp),
+        // Shuffle with active dot indicator
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(48.dp),
         ) {
-            Icon(
-                imageVector = Icons.Filled.Shuffle,
-                contentDescription = if (playback.shuffleEnabled) "Shuffle on" else "Shuffle off",
-                tint = if (playback.shuffleEnabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+            IconButton(
+                onClick = onToggleShuffle,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Shuffle,
+                    contentDescription = if (playback.shuffleEnabled) "Shuffle on" else "Shuffle off",
+                    tint = if (playback.shuffleEnabled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (playback.shuffleEnabled) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.background,
+                    ),
             )
         }
 
+        // Previous track
         IconButton(
             onClick = onPrevious,
             enabled = playback.hasPrevious,
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier.size(48.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.SkipPrevious,
                 contentDescription = "Previous track",
-                modifier = Modifier.size(32.dp),
+                tint = if (playback.hasPrevious) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(26.dp),
             )
         }
 
-        Box(contentAlignment = Alignment.Center) {
-            FilledIconButton(
-                onClick = onTogglePlayPause,
-                enabled = playback.queueSize > 0,
-                shape = CircleShape,
-                colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-                modifier = Modifier.size(72.dp),
+        // Tactile Studio Knob Play/Pause button
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    shape = CircleShape,
+                )
+                .clickable(enabled = playback.queueSize > 0, onClick = onTogglePlayPause),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (playback.isPlaying) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = if (playback.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription = if (playback.isPlaying) "Pause" else "Play",
-                    modifier = Modifier.size(36.dp),
+                    tint = if (playback.isPlaying) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(26.dp),
                 )
             }
             if (playback.isBuffering) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = MaterialTheme.colorScheme.primary,
                     strokeWidth = 2.dp,
-                    modifier = Modifier.size(64.dp),
+                    modifier = Modifier.size(58.dp),
                 )
             }
         }
 
+        // Next track
         IconButton(
             onClick = onNext,
             enabled = playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF,
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier.size(48.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.SkipNext,
                 contentDescription = "Next track",
-                modifier = Modifier.size(32.dp),
+                tint = if (playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                modifier = Modifier.size(26.dp),
             )
         }
 
-        IconButton(
-            onClick = onCycleRepeat,
-            modifier = Modifier.size(48.dp),
+        // Repeat with active dot indicator
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.width(48.dp),
         ) {
-            Icon(
-                imageVector = if (playback.repeatMode == Player.REPEAT_MODE_ONE) {
-                    Icons.Filled.RepeatOne
-                } else {
-                    Icons.Filled.Repeat
-                },
-                contentDescription = repeatDescription,
-                tint = if (playback.repeatMode != Player.REPEAT_MODE_OFF) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+            IconButton(
+                onClick = onCycleRepeat,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Icon(
+                    imageVector = if (playback.repeatMode == Player.REPEAT_MODE_ONE) {
+                        Icons.Filled.RepeatOne
+                    } else {
+                        Icons.Filled.Repeat
+                    },
+                    contentDescription = repeatDescription,
+                    tint = if (playback.repeatMode != Player.REPEAT_MODE_OFF) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(4.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (playback.repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.background,
+                    ),
             )
         }
     }

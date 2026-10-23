@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Noir Music - Android Media Notification</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols Outlined -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-variant": "#333534",
+            "on-primary-fixed-variant": "#394d00",
+            "on-primary-fixed": "#151f00",
+            "tertiary": "#e6eae4",
+            "inverse-on-surface": "#2f3130",
+            "error-container": "#93000a",
+            "on-secondary": "#2b322b",
+            "primary-fixed-dim": "#b2d264",
+            "background": "#121413",
+            "on-error-container": "#ffdad6",
+            "secondary-fixed": "#dee4db",
+            "surface-container-lowest": "#0d0f0e",
+            "inverse-surface": "#e2e3e0",
+            "error": "#ffb4ab",
+            "on-error": "#690005",
+            "secondary-container": "#424941",
+            "on-background": "#e2e3e0",
+            "primary": "#d4f683",
+            "on-tertiary-fixed": "#181d19",
+            "on-secondary-fixed": "#171d17",
+            "surface-dim": "#121413",
+            "surface-container-highest": "#333534",
+            "on-primary-container": "#465f00",
+            "on-surface": "#e2e3e0",
+            "surface-container-high": "#282a29",
+            "inverse-primary": "#4d6700",
+            "on-primary": "#263500",
+            "tertiary-fixed-dim": "#c3c8c2",
+            "on-tertiary-fixed-variant": "#434843",
+            "tertiary-fixed": "#dfe4dd",
+            "primary-container": "#b8d96a",
+            "on-secondary-fixed-variant": "#424941",
+            "surface-bright": "#383a38",
+            "primary-fixed": "#cdef7d",
+            "on-secondary-container": "#b0b7ae",
+            "surface": "#121413",
+            "on-surface-variant": "#c5c8b4",
+            "surface-container-low": "#1a1c1b",
+            "surface-tint": "#b2d264",
+            "secondary": "#c2c8bf",
+            "on-tertiary-container": "#535853",
+            "outline": "#8f9380",
+            "surface-container": "#1e201f",
+            "tertiary-container": "#c9cec8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "margin": "1rem",
+            "space-xs": "0.25rem",
+            "gutter": "1rem"
+          },
+          "fontFamily": {
+            "label-mono-sm": ["Geist"],
+            "body-lg": ["Geist"],
+            "label-mono": ["Geist"],
+            "body-md": ["Geist"],
+            "headline-lg-mobile": ["Geist"],
+            "headline-lg": ["Geist"],
+            "headline-sm": ["Geist"],
+            "headline-md": ["Geist"]
+          },
+          "fontSize": {
+            "label-mono-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "500" }],
+            "body-lg": ["15px", { "lineHeight": "22px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+            "label-mono": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "body-md": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg": ["32px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface antialiased min-h-screen flex items-center justify-center p-0 sm:p-space-lg selection:bg-primary-container selection:text-on-primary-container font-body-md text-body-md">
+<!-- Mobile Frame Container (Strict 390px native Android Lockscreen/Notification Shade canvas) -->
+<div class="w-full max-w-[390px] min-h-[844px] bg-background text-on-surface flex flex-col justify-between relative overflow-hidden shadow-2xl border border-surface-variant select-none">
+<!-- Ambient backdrop representing lockscreen subtle tonal diffusion -->
+<div class="absolute inset-0 bg-gradient-to-b from-surface-container-high/40 via-background to-surface-container-lowest pointer-events-none"></div>
+<!-- MAIN CONTENT SCROLL AREA -->
+<div class="relative z-10 flex flex-col w-full flex-1">
+<!-- Native Android Status Bar (Edge-to-edge system insets) -->
+<div class="w-full h-10 px-space-md pt-2 flex items-center justify-between text-on-surface">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm font-semibold tracking-tight">09:41</span>
+<!-- Active audio playback indicator in status bar -->
+<span class="material-symbols-outlined text-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">graphic_eq</span>
+<span class="material-symbols-outlined text-secondary text-[14px]">notifications</span>
+</div>
+<div class="flex items-center gap-2 text-secondary">
+<span class="font-label-mono-sm text-label-mono-sm">84%</span>
+<span class="material-symbols-outlined text-[15px]" style="font-variation-settings: 'FILL' 1;">sim_card_download</span>
+<span class="material-symbols-outlined text-[15px]">wifi</span>
+<span class="material-symbols-outlined text-[15px]">signal_cellular_alt</span>
+</div>
+</div>
+<!-- Quick Notification Header Label / Subtitle -->
+<div class="px-space-md pt-space-xs pb-space-sm flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="font-label-mono-sm text-label-mono-sm text-primary tracking-wider uppercase font-semibold">SystemUI Shade</span>
+<span class="text-surface-variant font-label-mono-sm text-label-mono-sm">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary">Media3 Player</span>
+</div>
+<div class="flex items-center gap-1">
+<button aria-label="Clear all notifications" class="w-7 h-7 flex items-center justify-center rounded-full bg-surface-container border border-surface-variant text-secondary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[14px]">clear_all</span>
+</button>
+</div>
+</div>
+<!-- Notification Stack Container -->
+<div class="px-space-md space-y-space-md mt-space-xs">
+<!-- 1. EXPANDED MEDIA NOTIFICATION (Jetpack Media3 NotificationCompat.MediaStyle) -->
+<section aria-label="Expanded Media Player Notification" class="relative rounded-xl bg-surface-container border border-surface-variant overflow-hidden shadow-lg transition-all">
+<!-- Blurry artwork backdrop subtle layer -->
+<div class="absolute -right-10 -bottom-10 w-44 h-44 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
+<!-- Notification Inner Padding -->
+<div class="p-space-md flex flex-col space-y-space-sm relative z-10">
+<!-- App Identity Header & Output Switcher Row -->
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-2 min-w-0">
+<!-- App Icon -->
+<div class="w-6 h-6 rounded-lg bg-surface-container-high border border-surface-variant flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-primary text-[14px]" style="font-variation-settings: 'FILL' 1;">graphic_eq</span>
+</div>
+<!-- Brand & Channel -->
+<div class="flex items-center gap-1 truncate">
+<span class="font-headline-sm text-headline-sm text-on-surface truncate">Noir Music</span>
+<span class="text-secondary font-label-mono-sm text-label-mono-sm">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary truncate">Local Audio</span>
+</div>
+</div>
+<!-- Output Switcher Pill (Native Android 13/14 Media Output Switcher) -->
+<button aria-label="Audio Output Selector" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high border border-surface-variant text-primary active:scale-95 transition-transform flex-shrink-0">
+<span class="material-symbols-outlined text-[14px]">headphones</span>
+<span class="font-label-mono-sm text-label-mono-sm font-semibold">USB DAC (96k/24b)</span>
+</button>
+</div>
+<!-- Track Info & Artwork Row -->
+<div class="flex items-center justify-between pt-1 gap-3">
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5 mb-0.5">
+<span class="px-1.5 py-0.5 rounded-sm bg-surface-container-lowest border border-surface-variant text-primary font-label-mono-sm text-label-mono-sm uppercase tracking-wide">Bit-Perfect</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary">FLAC 96kHz</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-on-surface truncate tracking-tight">Nude</h2>
+<p class="font-body-md text-body-md text-secondary truncate mt-0.5">Radiohead — In Rainbows</p>
+</div>
+<!-- Album Art Thumbnail with tactile border -->
+<div class="relative w-16 h-16 rounded-lg overflow-hidden border border-surface-variant flex-shrink-0 shadow-inner bg-surface-container-lowest">
+<img class="w-full h-full object-cover" data-alt="Album cover artwork for Radiohead's In Rainbows featuring vibrant organic circular digital textures, luminous orange and crimson geometric forms set against a deep moody charcoal canvas. The aesthetic is tactile and analogue, reminiscent of late 2000s art-rock physical releases with fine grit texture and high precision studio sound." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5DhiT_j86MW0Ya4-VdAux1jDzROExnyo273t8ATTtINmqvNGZcZxCYLgyZ2fzRpRIFMvBoQD1Kt7koDVIsbaJPBu5eEU6105B12GoNDLb7kzjR_xylRLd85hAeSK77xTi-Z0XFde-Mu7g6fanvjKu0W8Xynm8hmU0Re_bzmzrR7DhWu1C1iKDGQezejjhkf5o-fWC290OYgcHikjZt-aH4p_lqEi8KjPj9hE3zKcRiYrcPqsjnIW4"/>
+<div class="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-lg pointer-events-none"></div>
+</div>
+</div>
+<!-- Scrubber & Waveform Timeline (Android 13/14/15 Squiggle or Precise Rail) -->
+<div class="pt-2">
+<!-- Waveform / Scrubber Progress Bar -->
+<div aria-valuemax="255" aria-valuemin="0" aria-valuenow="134" class="relative w-full h-3 flex items-center cursor-pointer group" role="slider">
+<!-- Track Rail -->
+<div class="w-full h-[3px] bg-surface-container-highest rounded-full overflow-hidden relative">
+<!-- Active Fill -->
+<div class="h-full bg-primary-container rounded-full" style="width: 52.5%;"></div>
+</div>
+<!-- Playhead Thumb (Jetpack Compose ergonomic target) -->
+<div class="absolute top-1/2 -translate-y-1/2 left-[52.5%] -translate-x-1/2 w-3 h-3 bg-primary-container rounded-full ring-2 ring-background group-active:scale-125 transition-transform"></div>
+</div>
+<!-- Timestamp Labels -->
+<div class="flex justify-between items-center mt-1">
+<span class="font-label-mono text-label-mono text-primary font-medium">02:14</span>
+<div class="flex items-center gap-1 font-label-mono-sm text-label-mono-sm text-secondary">
+<span>ALSA Direct</span>
+<span class="w-1 h-1 rounded-full bg-primary"></span>
+</div>
+<span class="font-label-mono text-label-mono text-secondary">04:15</span>
+</div>
+</div>
+<!-- Media3 Transport Controls Row (Minimum 48dp touch bounds) -->
+<div class="flex items-center justify-between pt-1">
+<!-- Shuffle Button (Active with indicator dot) -->
+<button aria-label="Shuffle On" class="w-12 h-12 flex flex-col items-center justify-center rounded-full text-primary hover:text-on-surface active:opacity-75 transition-colors relative">
+<span class="material-symbols-outlined text-[22px]">shuffle</span>
+<span class="w-1 h-1 rounded-full bg-primary absolute bottom-2"></span>
+</button>
+<!-- Previous Track Button -->
+<button aria-label="Previous Track" class="w-12 h-12 flex items-center justify-center rounded-full text-secondary hover:text-on-surface active:opacity-75 transition-colors">
+<span class="material-symbols-outlined text-[24px]">skip_previous</span>
+</button>
+<!-- Primary Play/Pause Button (56dp target, 48dp active container in Pause state) -->
+<button aria-label="Pause" class="w-14 h-14 flex items-center justify-center rounded-full active:scale-95 transition-transform">
+<div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-background shadow-md">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</div>
+</button>
+<!-- Next Track Button -->
+<button aria-label="Next Track" class="w-12 h-12 flex items-center justify-center rounded-full text-secondary hover:text-on-surface active:opacity-75 transition-colors">
+<span class="material-symbols-outlined text-[24px]">skip_next</span>
+</button>
+<!-- Repeat Button (Off state) -->
+<button aria-label="Repeat Off" class="w-12 h-12 flex items-center justify-center rounded-full text-secondary hover:text-on-surface active:opacity-75 transition-colors">
+<span class="material-symbols-outlined text-[22px]">repeat</span>
+</button>
+</div>
+</div>
+</section>
+<!-- 2. COMPACT NOTIFICATION VARIANT (Single-row collapsed state) -->
+<div class="space-y-1.5">
+<div class="flex items-center justify-between px-1">
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase tracking-wider font-semibold">Collapsed Variant (Lockscreen Compact)</span>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary">Single Row</span>
+</div>
+<section aria-label="Compact Media Player Notification" class="rounded-xl bg-surface-container border border-surface-variant p-space-sm flex flex-col justify-between overflow-hidden shadow-sm">
+<div class="flex items-center justify-between gap-3">
+<!-- Thumbnail Artwork -->
+<div class="w-12 h-12 rounded-lg overflow-hidden border border-surface-variant flex-shrink-0 bg-surface-container-lowest">
+<img class="w-full h-full object-cover" data-alt="Close up album art graphic with minimalist high-contrast modernist typography and dark graphite textures representing high resolution audio track streaming on portable Android device. Monochromatic dark slate palette with faint chartreuse accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPk46PvJ4T7NKuMXIAN1Oi1W8UwJ17RM0en_aDBdAU8j8OpcWR8Q1kepF11Noennz0HAKwKI2j5kkJUPj9YVRPdJSsN6_AO1vB4ltf7GhVfXnxWHZyvzWfHssmGNoDEOSXdD2LwCcdmU-OY_ghI4MIX0k-YjyW_AeT7uUOA74fQ3IsbUF_uGp9FDtIfhosh7G7hTujq7FW0OBVIpO3XcIi2NnCrRGUagnXXqzUnT1PUF9Dg9rLtXKK"/>
+</div>
+<!-- Track & Artist Meta -->
+<div class="flex-1 min-w-0">
+<div class="flex items-center gap-1.5">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate">Nude</h3>
+<span class="text-secondary font-label-mono-sm text-label-mono-sm">•</span>
+<span class="font-label-mono-sm text-label-mono-sm text-primary font-medium">96k DSD</span>
+</div>
+<p class="font-body-md text-body-md text-secondary truncate">Radiohead</p>
+</div>
+<!-- Compact Controls [Prev] [Pause] [Next] -->
+<div class="flex items-center space-x-0.5 flex-shrink-0">
+<button aria-label="Previous" class="w-9 h-9 flex items-center justify-center rounded-full text-secondary hover:text-on-surface active:opacity-75">
+<span class="material-symbols-outlined text-[20px]">skip_previous</span>
+</button>
+<button aria-label="Pause" class="w-10 h-10 flex items-center justify-center rounded-full bg-primary-container text-background active:scale-95 transition-transform shadow-sm">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+<button aria-label="Next" class="w-9 h-9 flex items-center justify-center rounded-full text-secondary hover:text-on-surface active:opacity-75">
+<span class="material-symbols-outlined text-[20px]">skip_next</span>
+</button>
+</div>
+</div>
+<!-- Hairline Progress Bar Under Compact State -->
+<div class="w-full h-[2px] bg-surface-container-highest rounded-full overflow-hidden mt-2">
+<div class="h-full bg-primary-container rounded-full" style="width: 52.5%;"></div>
+</div>
+</section>
+</div>
+<!-- 3. IMPLEMENTATION ARCHITECTURE SPECIFICATION CARD -->
+<section class="rounded-xl bg-surface-container-low border border-surface-variant p-space-sm space-y-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[16px]">terminal</span>
+<span class="font-label-mono-sm text-label-mono-sm text-primary font-semibold tracking-wider uppercase">Architecture Specification</span>
+</div>
+<p class="font-body-md text-body-md text-secondary leading-relaxed">
+            Android MediaSession &amp; <code class="font-label-mono text-label-mono text-on-surface px-1 py-0.5 bg-surface-container rounded">NotificationCompat.MediaStyle</code> specification: Implemented using Jetpack Media3 Session &amp; Player, supporting lockscreen media controls and seamless direct ALSA bit-perfect output.
+          </p>
+<div class="pt-1 flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container border border-surface-variant font-label-mono-sm text-label-mono-sm text-secondary">androidx.media3.session</span>
+<span class="px-2 py-0.5 rounded bg-surface-container border border-surface-variant font-label-mono-sm text-label-mono-sm text-secondary">AudioTrack.PERF_MODE_LOW_LATENCY</span>
+<span class="px-2 py-0.5 rounded bg-surface-container border border-surface-variant font-label-mono-sm text-label-mono-sm text-primary font-medium">Native ALSA 24/96</span>
+</div>
+</section>
+</div>
+</div>
+<!-- Android 3-Button or Native Gesture Pill Navigation Inset Area -->
+<div class="relative z-10 w-full pt-space-sm pb-space-md flex flex-col items-center justify-end">
+<!-- Android Gesture Handle Pill -->
+<div class="w-32 h-1 bg-surface-variant rounded-full mb-1"></div>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary opacity-60">Swipe up for Lockscreen / Shade</span>
+</div>
+</div>
+</body></html>

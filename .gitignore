@@ -7,3 +7,6 @@ local.properties
 .kotlin/
 captures/
 .DS_Store
+mcp_config.json
+.agents/
+.gemini/

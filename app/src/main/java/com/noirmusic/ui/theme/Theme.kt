@@ -3,28 +3,33 @@ package com.noirmusic.ui.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 private val NoirColorScheme = darkColorScheme(
-    primary = NoirAccent,
-    onPrimary = NoirOnAccent,
-    primaryContainer = NoirSurfaceHigh,
-    onPrimaryContainer = NoirOnBackground,
-    secondary = NoirAccent,
-    onSecondary = NoirOnAccent,
-    secondaryContainer = NoirSurfaceHigh,
-    onSecondaryContainer = NoirOnBackground,
+    primary = NoirPrimary,
+    onPrimary = NoirOnPrimary,
+    primaryContainer = NoirPrimaryContainer,
+    onPrimaryContainer = NoirOnPrimaryContainer,
+    secondary = NoirSecondary,
+    onSecondary = NoirOnSecondary,
+    secondaryContainer = NoirSurfaceVariant,
+    onSecondaryContainer = NoirOnSurface,
     background = NoirBackground,
-    onBackground = NoirOnBackground,
+    onBackground = NoirOnSurface,
     surface = NoirSurface,
-    onSurface = NoirOnBackground,
-    surfaceVariant = NoirSurfaceHigh,
+    onSurface = NoirOnSurface,
+    surfaceVariant = NoirSurfaceVariant,
     onSurfaceVariant = NoirOnSurfaceVariant,
-    surfaceContainer = NoirSurface,
+    surfaceContainerLowest = Color(0xFF0D0F0E),
+    surfaceContainerLow = NoirSurfaceLow,
+    surfaceContainer = NoirSurfaceContainer,
     surfaceContainerHigh = NoirSurfaceHigh,
-    surfaceContainerHighest = NoirSurfaceHigh,
-    outline = NoirOutlineVariant,
+    surfaceContainerHighest = NoirSurfaceHighest,
+    outline = NoirOutline,
     outlineVariant = NoirOutlineVariant,
     error = NoirError,
+    onError = NoirOnError,
+    errorContainer = NoirErrorContainer,
 )
 
 @Composable
