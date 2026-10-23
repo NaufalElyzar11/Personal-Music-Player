@@ -57,12 +57,6 @@ fun NoirApp(
             }
         }
 
-        LaunchedEffect(playback.nowPlaying, playback.queueSize, playback.isConnected) {
-            if (playback.nowPlaying == null && playback.queueSize == 0 && playback.isConnected) {
-                nowPlayingOpen = false
-            }
-        }
-
         BackHandler(enabled = nowPlayingOpen) {
             nowPlayingOpen = false
         }

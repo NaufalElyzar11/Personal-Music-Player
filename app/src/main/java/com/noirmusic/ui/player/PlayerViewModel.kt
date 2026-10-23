@@ -106,7 +106,7 @@ class PlayerViewModel(
     }
 
     private suspend fun ensureController(): MediaController? {
-        controller?.let { return it }
+        controller?.takeIf { it.isConnected }?.let { return it }
         return try {
             Log.d("PlayerViewModel", "Connecting to PlaybackConnection...")
             val c = connection.await()
@@ -324,7 +324,9 @@ class PlayerViewModel(
     private fun MediaItem.toNowPlaying(): NowPlaying? {
         if (mediaId.isBlank()) return null
         val m = mediaMetadata
-        val title = m.title?.toString()?.takeIf { it.isNotBlank() } ?: return null
+        val title = m.title?.toString()?.takeIf { it.isNotBlank() }
+            ?: m.displayTitle?.toString()?.takeIf { it.isNotBlank() }
+            ?: "Track $mediaId"
         return NowPlaying(
             mediaId = mediaId,
             title = title,
