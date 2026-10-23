@@ -11,7 +11,10 @@ import com.noirmusic.data.lyrics.LrclibJson
 import com.noirmusic.data.lyrics.LyricsRepository
 import com.noirmusic.data.media.MediaStoreTrackRepository
 import com.noirmusic.data.media.TrackRepository
+import com.noirmusic.data.playlist.JsonPlaylistRepository
+import com.noirmusic.data.playlist.PlaylistRepository
 import com.noirmusic.playback.PlaybackConnection
+import com.noirmusic.playback.SleepTimerManager
 import com.noirmusic.ui.library.LibraryViewModel
 import com.noirmusic.ui.player.PlayerViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -26,8 +29,12 @@ class AppContainer(context: Context) {
 
     private val appContext = context.applicationContext
 
-    /** Long-lived scope used only for shared in-flight lyrics requests. */
+    /** Long-lived scope used for background jobs like lyrics and sleep timer. */
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val sleepTimerManager: SleepTimerManager by lazy { SleepTimerManager(appScope) }
+
+    val playlistRepository: PlaylistRepository by lazy { JsonPlaylistRepository(appContext) }
 
     val userAgent: String = HttpErrorMapping.buildUserAgent(BuildConfig.VERSION_NAME, BuildConfig.LRCLIB_CLIENT_CONTACT)
 
@@ -58,10 +65,10 @@ class AppContainer(context: Context) {
     val trackRepository: TrackRepository by lazy { MediaStoreTrackRepository(appContext.contentResolver) }
 
     val libraryViewModelFactory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { LibraryViewModel(trackRepository) }
+        initializer { LibraryViewModel(trackRepository, playlistRepository) }
     }
 
     val playerViewModelFactory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { PlayerViewModel(PlaybackConnection(appContext), lyricsRepository) }
+        initializer { PlayerViewModel(PlaybackConnection(appContext), lyricsRepository, sleepTimerManager) }
     }
 }

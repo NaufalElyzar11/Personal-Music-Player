@@ -15,6 +15,8 @@ import com.noirmusic.playback.EXTRA_TITLE_FROM_FILE_NAME
 import com.noirmusic.playback.PlayPauseAction
 import com.noirmusic.playback.PlaybackConnection
 import com.noirmusic.playback.PlayerLogic
+import com.noirmusic.playback.SleepTimerManager
+import com.noirmusic.playback.SleepTimerState
 import com.noirmusic.playback.toMediaItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -52,6 +54,7 @@ private class ArtworkKey(val mediaId: String?, val data: ByteArray?) {
 class PlayerViewModel(
     private val connection: PlaybackConnection,
     private val lyricsRepository: LyricsRepository,
+    private val sleepTimerManager: SleepTimerManager,
 ) : ViewModel() {
 
     private var controller: MediaController? = null
@@ -59,6 +62,8 @@ class PlayerViewModel(
 
     private val _playbackState = MutableStateFlow(PlaybackUiState())
     val playbackState: StateFlow<PlaybackUiState> = _playbackState.asStateFlow()
+
+    val sleepTimerState: StateFlow<SleepTimerState> = sleepTimerManager.state
 
     private val _nowPlayingPane = MutableStateFlow(NowPlayingPane.COVER)
     val nowPlayingPane: StateFlow<NowPlayingPane> = _nowPlayingPane.asStateFlow()
@@ -172,6 +177,22 @@ class PlayerViewModel(
 
     fun setNowPlayingPane(pane: NowPlayingPane) {
         _nowPlayingPane.value = pane
+    }
+
+    fun startSleepTimer(minutes: Int) {
+        sleepTimerManager.startTimer(minutes)
+    }
+
+    fun startSleepTimerEndOfTrack() {
+        sleepTimerManager.startEndOfTrackTimer()
+    }
+
+    fun addSleepTimerMinutes(minutes: Int) {
+        sleepTimerManager.addMinutes(minutes)
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerManager.cancelTimer()
     }
 
     fun retryLyrics() {

@@ -6,6 +6,8 @@ import com.noirmusic.data.media.SortOrder
 import com.noirmusic.data.media.TrackListLogic
 import com.noirmusic.data.media.TrackRepository
 import com.noirmusic.data.model.Track
+import com.noirmusic.data.playlist.Playlist
+import com.noirmusic.data.playlist.PlaylistRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,7 +40,10 @@ private sealed interface ScanState {
     data class Failed(val message: String) : ScanState
 }
 
-class LibraryViewModel(private val repository: TrackRepository) : ViewModel() {
+class LibraryViewModel(
+    private val repository: TrackRepository,
+    private val playlistRepository: PlaylistRepository,
+) : ViewModel() {
 
     private val scan = MutableStateFlow<ScanState>(ScanState.Idle)
     private val _query = MutableStateFlow("")
@@ -46,6 +51,24 @@ class LibraryViewModel(private val repository: TrackRepository) : ViewModel() {
     private val _sort = MutableStateFlow(SortOrder.TITLE)
     val sort: StateFlow<SortOrder> = _sort.asStateFlow()
     private var scanJob: Job? = null
+
+    val playlists: StateFlow<List<Playlist>> = playlistRepository.playlists
+
+    private val _selectedPlaylistId = MutableStateFlow<String?>(null)
+    val selectedPlaylistId: StateFlow<String?> = _selectedPlaylistId.asStateFlow()
+
+    val selectedPlaylistWithTracks: StateFlow<Pair<Playlist, List<Track>>?> = combine(
+        playlistRepository.playlists,
+        _selectedPlaylistId,
+        scan,
+    ) { playlistsList, selectedId, s ->
+        if (selectedId == null) return@combine null
+        val playlist = playlistsList.find { it.id == selectedId } ?: return@combine null
+        val allTracks = (s as? ScanState.Loaded)?.tracks ?: emptyList()
+        val trackMap = allTracks.associateBy { it.id }
+        val resolvedTracks = playlist.trackIds.mapNotNull { trackMap[it] }
+        playlist to resolvedTracks
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val uiState: StateFlow<LibraryUiState> = combine(scan, _query, _sort) { s, q, sort ->
         when (s) {
@@ -88,5 +111,44 @@ class LibraryViewModel(private val repository: TrackRepository) : ViewModel() {
 
     fun setSort(value: SortOrder) {
         _sort.value = value
+    }
+
+    fun selectPlaylist(id: String?) {
+        _selectedPlaylistId.value = id
+    }
+
+    fun createPlaylist(name: String, initialTrackId: Long? = null, onCreated: ((Playlist) -> Unit)? = null) {
+        viewModelScope.launch {
+            val p = playlistRepository.createPlaylist(name, initialTrackId)
+            onCreated?.invoke(p)
+        }
+    }
+
+    fun deletePlaylist(id: String) {
+        viewModelScope.launch {
+            if (_selectedPlaylistId.value == id) {
+                _selectedPlaylistId.value = null
+            }
+            playlistRepository.deletePlaylist(id)
+        }
+    }
+
+    fun renamePlaylist(id: String, newName: String) {
+        viewModelScope.launch {
+            playlistRepository.renamePlaylist(id, newName)
+        }
+    }
+
+    fun addTrackToPlaylist(playlistId: String, trackId: Long, onResult: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            val added = playlistRepository.addTrackToPlaylist(playlistId, trackId)
+            onResult?.invoke(added)
+        }
+    }
+
+    fun removeTrackFromPlaylist(playlistId: String, trackId: Long) {
+        viewModelScope.launch {
+            playlistRepository.removeTrackFromPlaylist(playlistId, trackId)
+        }
     }
 }

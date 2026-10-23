@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -51,8 +53,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
+import com.noirmusic.playback.SleepTimerState
 import com.noirmusic.ui.common.formatDuration
 import kotlinx.coroutines.flow.StateFlow
+import java.util.Locale
 import kotlin.math.roundToLong
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -63,6 +67,7 @@ fun NowPlayingScreen(
     lyricsStateFlow: StateFlow<LyricsUiState>,
     activeLineIndexFlow: StateFlow<Int>,
     artworkFlow: StateFlow<androidx.compose.ui.graphics.ImageBitmap?>,
+    sleepTimerStateFlow: StateFlow<SleepTimerState>,
     pane: NowPlayingPane,
     onPaneChange: (NowPlayingPane) -> Unit,
     onClose: () -> Unit,
@@ -73,9 +78,27 @@ fun NowPlayingScreen(
     onToggleShuffle: () -> Unit,
     onCycleRepeat: () -> Unit,
     onRetryLyrics: () -> Unit,
+    onStartSleepTimer: (Int) -> Unit,
+    onStartSleepTimerEndOfTrack: () -> Unit,
+    onAddSleepTimerMinutes: (Int) -> Unit,
+    onCancelSleepTimer: () -> Unit,
+    onAddToPlaylist: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val track = playback.nowPlaying
+    val sleepTimerState by sleepTimerStateFlow.collectAsStateWithLifecycle()
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            state = sleepTimerState,
+            onStartTimer = onStartSleepTimer,
+            onStartEndOfTrack = onStartSleepTimerEndOfTrack,
+            onAddMinutes = onAddSleepTimerMinutes,
+            onCancelTimer = onCancelSleepTimer,
+            onDismiss = { showSleepTimerDialog = false },
+        )
+    }
 
     Column(
         modifier = modifier
@@ -100,12 +123,54 @@ fun NowPlayingScreen(
                     contentDescription = "Close player",
                 )
             }
-            Text(
-                text = "Now playing",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Column(
                 modifier = Modifier.align(Alignment.Center),
-            )
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = "Now playing",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (sleepTimerState is SleepTimerState.Active) {
+                    val active = sleepTimerState as SleepTimerState.Active
+                    val timerLabel = if (active.isEndOfTrack) {
+                        "Tidur: selesai lagu"
+                    } else {
+                        val m = active.remainingSec / 60
+                        val s = active.remainingSec % 60
+                        String.format(Locale.getDefault(), "Tidur: %02d:%02d", m, s)
+                    }
+                    Text(
+                        text = timerLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (onAddToPlaylist != null && track != null) {
+                    IconButton(onClick = onAddToPlaylist) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                            contentDescription = "Tambah ke playlist",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                IconButton(onClick = { showSleepTimerDialog = true }) {
+                    val isActive = sleepTimerState is SleepTimerState.Active
+                    Icon(
+                        imageVector = Icons.Filled.Bedtime,
+                        contentDescription = "Timer tidur",
+                        tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
 
         // 2. Cover / Lyrics switch

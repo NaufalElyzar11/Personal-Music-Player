@@ -10,11 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.noirmusic.data.model.Track
+import com.noirmusic.ui.library.AddToPlaylistDialog
 import com.noirmusic.ui.library.LibraryScreen
+import com.noirmusic.ui.library.LibraryUiState
 import com.noirmusic.ui.library.LibraryViewModel
 import com.noirmusic.ui.permission.PermissionGate
 import com.noirmusic.ui.player.NowPlayingScreen
@@ -34,10 +38,15 @@ fun NoirApp(
         }
 
         var nowPlayingOpen by rememberSaveable { mutableStateOf(false) }
+        var trackToAddFromNowPlaying by remember { mutableStateOf<Track?>(null) }
+
         val shouldOpenPlayer by openPlayerRequest.collectAsStateWithLifecycle()
         val libraryState by libraryViewModel.uiState.collectAsStateWithLifecycle()
         val query by libraryViewModel.query.collectAsStateWithLifecycle()
         val sort by libraryViewModel.sort.collectAsStateWithLifecycle()
+        val playlists by libraryViewModel.playlists.collectAsStateWithLifecycle()
+        val selectedPlaylistWithTracks by libraryViewModel.selectedPlaylistWithTracks.collectAsStateWithLifecycle()
+
         val playback by playerViewModel.playbackState.collectAsStateWithLifecycle()
         val pane by playerViewModel.nowPlayingPane.collectAsStateWithLifecycle()
 
@@ -56,12 +65,34 @@ fun NoirApp(
             nowPlayingOpen = false
         }
 
+        BackHandler(enabled = selectedPlaylistWithTracks != null && !nowPlayingOpen) {
+            libraryViewModel.selectPlaylist(null)
+        }
+
+        trackToAddFromNowPlaying?.let { track ->
+            AddToPlaylistDialog(
+                track = track,
+                playlists = playlists,
+                onAddToPlaylist = { playlistId ->
+                    libraryViewModel.addTrackToPlaylist(playlistId, track.id)
+                    trackToAddFromNowPlaying = null
+                },
+                onCreateAndAdd = { name ->
+                    libraryViewModel.createPlaylist(name, track.id)
+                    trackToAddFromNowPlaying = null
+                },
+                onDismiss = { trackToAddFromNowPlaying = null },
+            )
+        }
+
         Box(modifier = Modifier.fillMaxSize()) {
             LibraryScreen(
                 state = libraryState,
                 query = query,
                 sort = sort,
                 playback = playback,
+                playlists = playlists,
+                selectedPlaylistWithTracks = selectedPlaylistWithTracks,
                 onQueryChange = libraryViewModel::setQuery,
                 onSortChange = libraryViewModel::setSort,
                 onRefresh = { libraryViewModel.scan(force = true) },
@@ -69,6 +100,14 @@ fun NoirApp(
                 onTogglePlayPause = playerViewModel::togglePlayPause,
                 onNext = playerViewModel::next,
                 onOpenNowPlaying = { nowPlayingOpen = true },
+                onSelectPlaylist = libraryViewModel::selectPlaylist,
+                onCreatePlaylist = { name, initialTrackId ->
+                    libraryViewModel.createPlaylist(name, initialTrackId)
+                },
+                onDeletePlaylist = libraryViewModel::deletePlaylist,
+                onRenamePlaylist = libraryViewModel::renamePlaylist,
+                onAddToPlaylist = libraryViewModel::addTrackToPlaylist,
+                onRemoveFromPlaylist = libraryViewModel::removeTrackFromPlaylist,
             )
 
             AnimatedVisibility(
@@ -76,12 +115,17 @@ fun NoirApp(
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
             ) {
+                val currentTrack = (libraryState as? LibraryUiState.Content)?.all?.find {
+                    it.id.toString() == playback.nowPlaying?.mediaId
+                }
+
                 NowPlayingScreen(
                     playback = playback,
                     positionMsFlow = playerViewModel.positionMs,
                     lyricsStateFlow = playerViewModel.lyricsState,
                     activeLineIndexFlow = playerViewModel.activeLineIndex,
                     artworkFlow = playerViewModel.artwork,
+                    sleepTimerStateFlow = playerViewModel.sleepTimerState,
                     pane = pane,
                     onPaneChange = playerViewModel::setNowPlayingPane,
                     onClose = { nowPlayingOpen = false },
@@ -92,6 +136,13 @@ fun NoirApp(
                     onToggleShuffle = playerViewModel::toggleShuffle,
                     onCycleRepeat = playerViewModel::cycleRepeat,
                     onRetryLyrics = playerViewModel::retryLyrics,
+                    onStartSleepTimer = playerViewModel::startSleepTimer,
+                    onStartSleepTimerEndOfTrack = playerViewModel::startSleepTimerEndOfTrack,
+                    onAddSleepTimerMinutes = playerViewModel::addSleepTimerMinutes,
+                    onCancelSleepTimer = playerViewModel::cancelSleepTimer,
+                    onAddToPlaylist = currentTrack?.let { track ->
+                        { trackToAddFromNowPlaying = track }
+                    },
                 )
             }
         }
