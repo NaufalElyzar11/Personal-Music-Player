@@ -197,6 +197,24 @@ class PlaybackService : MediaSessionService() {
             return super.onCustomCommand(session, controller, customCommand, args)
         }
 
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val resolved = mediaItems.mapNotNull { resolveForPlayback(it, collectionUri) }
+            val validIndex = if (startIndex in resolved.indices) startIndex else 0
+            return Futures.immediateFuture(
+                MediaSession.MediaItemsWithStartPosition(
+                    resolved,
+                    validIndex,
+                    startPositionMs.coerceAtLeast(0L),
+                ),
+            )
+        }
+
         override fun onAddMediaItems(
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,

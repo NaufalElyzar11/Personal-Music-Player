@@ -3,6 +3,7 @@
 
     <!-- Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Android 8.0–12L (API 26–32) -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"

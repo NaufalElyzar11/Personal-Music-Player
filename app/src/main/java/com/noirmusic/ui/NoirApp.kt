@@ -96,7 +96,10 @@ fun NoirApp(
                 onQueryChange = libraryViewModel::setQuery,
                 onSortChange = libraryViewModel::setSort,
                 onRefresh = { libraryViewModel.scan(force = true) },
-                onTrackClick = playerViewModel::playQueue,
+                onTrackClick = { tracks, index ->
+                    playerViewModel.playQueue(tracks, index)
+                    nowPlayingOpen = true
+                },
                 onTogglePlayPause = playerViewModel::togglePlayPause,
                 onNext = playerViewModel::next,
                 onOpenNowPlaying = { nowPlayingOpen = true },

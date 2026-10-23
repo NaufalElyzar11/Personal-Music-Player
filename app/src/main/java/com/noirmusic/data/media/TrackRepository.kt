@@ -29,7 +29,7 @@ class MediaStoreTrackRepository(
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.DISPLAY_NAME,
         )
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val selection = "(${MediaStore.Audio.Media.IS_MUSIC} != 0 OR ${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio/%') AND (${MediaStore.Audio.Media.DURATION} IS NULL OR ${MediaStore.Audio.Media.DURATION} >= 1000)"
         val cursor = contentResolver.query(audioCollectionUri(), projection, selection, null, null)
             ?: throw IllegalStateException("MediaStore returned no cursor")
         cursor.use { c ->

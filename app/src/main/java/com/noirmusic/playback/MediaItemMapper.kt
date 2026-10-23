@@ -5,12 +5,14 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import com.noirmusic.data.media.MediaStoreTrackRepository
 import com.noirmusic.data.model.Track
 
 const val EXTRA_TITLE_FROM_FILE_NAME = "noir.titleFromFileName"
 
-/** Controller-side item: identity + metadata only. The service resolves the URI from [MediaItem.mediaId]. */
+/** Converts [Track] to [MediaItem] with both identity metadata and content URI. */
 fun Track.toMediaItem(): MediaItem {
+    val contentUri = ContentUris.withAppendedId(MediaStoreTrackRepository.audioCollectionUri(), id)
     val extras = Bundle().apply { putBoolean(EXTRA_TITLE_FROM_FILE_NAME, titleFromFileName) }
     val metadata = MediaMetadata.Builder()
         .setTitle(title)
@@ -23,14 +25,28 @@ fun Track.toMediaItem(): MediaItem {
         .build()
     return MediaItem.Builder()
         .setMediaId(id.toString())
+        .setUri(contentUri)
+        .setRequestMetadata(
+            MediaItem.RequestMetadata.Builder()
+                .setMediaUri(contentUri)
+                .build(),
+        )
         .setMediaMetadata(metadata)
         .build()
 }
 
-/** Service-side: rebuilds an item with a content URI derived from its numeric media ID. `null` if invalid. */
+/** Service-side: ensures the item has an actionable content URI. `null` if invalid. */
 fun resolveForPlayback(item: MediaItem, collectionUri: Uri): MediaItem? {
-    val id = item.mediaId.toLongOrNull() ?: return null
+    val id = item.mediaId.toLongOrNull()
+    val uri = item.requestMetadata.mediaUri
+        ?: (id?.let { ContentUris.withAppendedId(collectionUri, it) })
+        ?: return null
     return item.buildUpon()
-        .setUri(ContentUris.withAppendedId(collectionUri, id))
+        .setUri(uri)
+        .setRequestMetadata(
+            MediaItem.RequestMetadata.Builder()
+                .setMediaUri(uri)
+                .build(),
+        )
         .build()
 }
