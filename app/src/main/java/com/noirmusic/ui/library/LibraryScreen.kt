@@ -320,6 +320,31 @@ fun LibraryScreen(
                     )
                 }
 
+                if (!playback.isConnected && playback.errorMessage != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.errorContainer)
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = playback.errorMessage,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
                 PrimaryTabRow(
                     selectedTabIndex = selectedTabIndex,
                     containerColor = MaterialTheme.colorScheme.background,

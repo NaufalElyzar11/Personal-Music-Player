@@ -1,6 +1,7 @@
 package com.noirmusic.ui.player
 
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
@@ -92,28 +93,45 @@ class PlayerViewModel(
             if (events.containsAny(Player.EVENT_MEDIA_METADATA_CHANGED, Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                 artworkSource.value = ArtworkKey(player.currentMediaItem?.mediaId, player.mediaMetadata.artworkData)
             }
+            if (events.contains(Player.EVENT_PLAYER_ERROR)) {
+                Log.e("PlayerViewModel", "Player error: ${player.playerError?.errorCodeName}: ${player.playerError?.message}", player.playerError)
+            }
         }
     }
 
     init {
         viewModelScope.launch {
-            try {
-                val c = connection.await()
-                controller = c
-                c.addListener(listener)
-                publish(c)
-                artworkSource.value = ArtworkKey(c.currentMediaItem?.mediaId, c.mediaMetadata.artworkData)
-                positionInvalidations.tryEmit(Unit)
+            ensureController()
+        }
+    }
+
+    private suspend fun ensureController(): MediaController? {
+        controller?.let { return it }
+        return try {
+            Log.d("PlayerViewModel", "Connecting to PlaybackConnection...")
+            val c = connection.await()
+            controller = c
+            c.addListener(listener)
+            publish(c)
+            artworkSource.value = ArtworkKey(c.currentMediaItem?.mediaId, c.mediaMetadata.artworkData)
+            positionInvalidations.tryEmit(Unit)
+            if (!controllerReady.isCompleted) {
                 controllerReady.complete(c)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (t: Throwable) {
-                _playbackState.value = PlaybackUiState(
-                    isConnected = false,
-                    errorMessage = "Couldn't connect to the player",
-                )
+            }
+            Log.d("PlayerViewModel", "Successfully connected to PlaybackService via MediaController")
+            c
+        } catch (e: CancellationException) {
+            throw e
+        } catch (t: Throwable) {
+            Log.e("PlayerViewModel", "Failed to connect to PlaybackService", t)
+            _playbackState.value = PlaybackUiState(
+                isConnected = false,
+                errorMessage = "Gagal terhubung ke pemutar audio: ${t.localizedMessage ?: t.javaClass.simpleName}",
+            )
+            if (!controllerReady.isCompleted) {
                 controllerReady.complete(null)
             }
+            null
         }
     }
 
@@ -200,7 +218,11 @@ class PlayerViewModel(
     }
 
     fun playQueue(tracks: List<Track>, startIndex: Int) {
-        if (tracks.isEmpty() || startIndex !in tracks.indices) return
+        if (tracks.isEmpty() || startIndex !in tracks.indices) {
+            Log.w("PlayerViewModel", "playQueue rejected: tracks.size=${tracks.size}, startIndex=$startIndex")
+            return
+        }
+        Log.d("PlayerViewModel", "playQueue: ${tracks.size} tracks, starting at $startIndex (${tracks[startIndex].title})")
         withController { c ->
             c.setMediaItems(tracks.map { it.toMediaItem() }, startIndex, 0L)
             c.prepare()
@@ -256,8 +278,15 @@ class PlayerViewModel(
 
     private inline fun withController(crossinline block: (MediaController) -> Unit) {
         viewModelScope.launch {
-            val c = controllerReady.await() ?: return@launch
-            block(c)
+            val c = controller ?: ensureController() ?: run {
+                Log.e("PlayerViewModel", "withController failed: MediaController is not available")
+                return@launch
+            }
+            try {
+                block(c)
+            } catch (t: Throwable) {
+                Log.e("PlayerViewModel", "Exception inside withController block", t)
+            }
         }
     }
 
@@ -272,6 +301,7 @@ class PlayerViewModel(
         } catch (_: Throwable) {
             emptyList()
         }
+        Log.d("PlayerViewModel", "publish: current='${current?.title}', isPlaying=${p.isPlaying}, playbackState=${p.playbackState}, queueSize=${p.mediaItemCount}")
         _playbackState.value = PlaybackUiState(
             isConnected = true,
             nowPlaying = current,

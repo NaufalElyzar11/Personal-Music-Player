@@ -2,6 +2,7 @@ package com.noirmusic.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -11,6 +12,8 @@ import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+private const val TAG = "PlaybackConnection"
+
 /** Builds and releases the app's single MediaController for [PlaybackService]. Main-thread only. */
 class PlaybackConnection(context: Context) {
 
@@ -18,18 +21,35 @@ class PlaybackConnection(context: Context) {
     private var future: ListenableFuture<MediaController>? = null
 
     suspend fun await(): MediaController {
-        val f = future ?: MediaController.Builder(
-            appContext,
-            SessionToken(appContext, ComponentName(appContext, PlaybackService::class.java)),
-        ).buildAsync().also { future = it }
+        val f = future ?: run {
+            Log.d(TAG, "Creating new MediaController for PlaybackService...")
+            MediaController.Builder(
+                appContext,
+                SessionToken(appContext, ComponentName(appContext, PlaybackService::class.java)),
+            ).buildAsync().also { future = it }
+        }
 
-        if (f.isDone) return f.getUnwrapped()
+        if (f.isDone) {
+            return try {
+                f.getUnwrapped().also {
+                    Log.d(TAG, "MediaController already connected")
+                }
+            } catch (t: Throwable) {
+                release()
+                throw t
+            }
+        }
+
         return suspendCancellableCoroutine { cont ->
             f.addListener(
                 {
                     try {
-                        cont.resume(f.getUnwrapped())
+                        val controller = f.getUnwrapped()
+                        Log.d(TAG, "MediaController successfully connected!")
+                        cont.resume(controller)
                     } catch (t: Throwable) {
+                        Log.e(TAG, "MediaController failed to connect", t)
+                        release() // clear failed future so retry will work!
                         cont.resumeWithException(t)
                     }
                 },
@@ -39,6 +59,7 @@ class PlaybackConnection(context: Context) {
     }
 
     fun release() {
+        Log.d(TAG, "Releasing MediaController future")
         future?.let { MediaController.releaseFuture(it) }
         future = null
     }

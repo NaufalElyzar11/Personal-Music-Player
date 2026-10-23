@@ -40,6 +40,7 @@ fun resolveForPlayback(item: MediaItem, collectionUri: Uri): MediaItem? {
     val id = item.mediaId.toLongOrNull()
     val uri = item.requestMetadata.mediaUri
         ?: (id?.let { ContentUris.withAppendedId(collectionUri, it) })
+        ?: item.localConfiguration?.uri
         ?: return null
     return item.buildUpon()
         .setUri(uri)

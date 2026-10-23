@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -27,6 +28,7 @@ import com.noirmusic.data.media.MediaStoreTrackRepository
 
 const val ACTION_TOGGLE_SHUFFLE = "com.noirmusic.ACTION_TOGGLE_SHUFFLE"
 const val ACTION_CYCLE_REPEAT = "com.noirmusic.ACTION_CYCLE_REPEAT"
+private const val TAG = "PlaybackService"
 
 /** Owns the ExoPlayer and MediaSession. The UI only talks to it through a MediaController. */
 class PlaybackService : MediaSessionService() {
@@ -35,6 +37,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.i(TAG, "PlaybackService onCreate")
         val player = ExoPlayer.Builder(this)
             .setAudioAttributes(
                 AudioAttributes.Builder()
@@ -66,15 +69,23 @@ class PlaybackService : MediaSessionService() {
             )
             .build()
 
-        setMediaNotificationProvider(CustomMediaNotificationProvider(this, ::buildCustomLayout))
+        try {
+            setMediaNotificationProvider(CustomMediaNotificationProvider(this, ::buildCustomLayout))
+        } catch (t: Throwable) {
+            Log.e(TAG, "Error configuring media notification provider", t)
+        }
 
         player.addListener(object : Player.Listener {
             override fun onRepeatModeChanged(repeatMode: Int) {
-                mediaSession?.setCustomLayout(buildCustomLayout(player))
+                mediaSession?.let { it.setCustomLayout(buildCustomLayout(player)) }
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                mediaSession?.setCustomLayout(buildCustomLayout(player))
+                mediaSession?.let { it.setCustomLayout(buildCustomLayout(player)) }
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                Log.e(TAG, "ExoPlayer onPlayerError: [${error.errorCodeName}] ${error.message}", error)
             }
         })
 
@@ -96,6 +107,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        Log.i(TAG, "PlaybackService onDestroy")
         val container = (application as? NoirApplication)?.container
         container?.sleepTimerManager?.detachPlayer()
 
@@ -109,21 +121,24 @@ class PlaybackService : MediaSessionService() {
 
     private fun buildCustomLayout(player: Player): ImmutableList<CommandButton> {
         val shuffleIcon = if (player.shuffleModeEnabled) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle_off
-        val shuffleCommand = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
-        val shuffleButton = CommandButton.Builder(shuffleIcon)
+        val shuffleIconEnum = if (player.shuffleModeEnabled) CommandButton.ICON_SHUFFLE_ON else CommandButton.ICON_SHUFFLE_OFF
+        val shuffleCommand = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle())
+        val shuffleButton = CommandButton.Builder(shuffleIconEnum)
             .setDisplayName(if (player.shuffleModeEnabled) "Shuffle on" else "Shuffle off")
             .setSessionCommand(shuffleCommand)
+            .setCustomIconResId(shuffleIcon)
             .build()
 
-        val (repeatIcon, repeatName) = when (player.repeatMode) {
-            Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one to "Repeat one"
-            Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat_all to "Repeat all"
-            else -> R.drawable.ic_repeat_off to "Repeat off"
+        val (repeatIcon, repeatName, repeatIconEnum) = when (player.repeatMode) {
+            Player.REPEAT_MODE_ONE -> Triple(R.drawable.ic_repeat_one, "Repeat one", CommandButton.ICON_REPEAT_ONE)
+            Player.REPEAT_MODE_ALL -> Triple(R.drawable.ic_repeat_all, "Repeat all", CommandButton.ICON_REPEAT_ALL)
+            else -> Triple(R.drawable.ic_repeat_off, "Repeat off", CommandButton.ICON_REPEAT_OFF)
         }
-        val repeatCommand = SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY)
-        val repeatButton = CommandButton.Builder(repeatIcon)
+        val repeatCommand = SessionCommand(ACTION_CYCLE_REPEAT, Bundle())
+        val repeatButton = CommandButton.Builder(repeatIconEnum)
             .setDisplayName(repeatName)
             .setSessionCommand(repeatCommand)
+            .setCustomIconResId(repeatIcon)
             .build()
 
         return ImmutableList.of(shuffleButton, repeatButton)
@@ -140,16 +155,21 @@ class PlaybackService : MediaSessionService() {
             customLayout: ImmutableList<CommandButton>,
             showPauseButton: Boolean,
         ): ImmutableList<CommandButton> {
-            val layout = customLayoutProvider(session.player)
-            val shuffleButton = layout.firstOrNull { it.sessionCommand?.customAction == ACTION_TOGGLE_SHUFFLE }
-            val repeatButton = layout.firstOrNull { it.sessionCommand?.customAction == ACTION_CYCLE_REPEAT }
+            return try {
+                val layout = customLayoutProvider(session.player)
+                val shuffleButton = layout.firstOrNull { it.sessionCommand?.customAction == ACTION_TOGGLE_SHUFFLE }
+                val repeatButton = layout.firstOrNull { it.sessionCommand?.customAction == ACTION_CYCLE_REPEAT }
 
-            val defaultButtons = super.getMediaButtons(session, playerCommands, customLayout, showPauseButton)
-            val result = mutableListOf<CommandButton>()
-            if (shuffleButton != null) result.add(shuffleButton)
-            result.addAll(defaultButtons)
-            if (repeatButton != null) result.add(repeatButton)
-            return ImmutableList.copyOf(result)
+                val defaultButtons = super.getMediaButtons(session, playerCommands, customLayout, showPauseButton)
+                val result = mutableListOf<CommandButton>()
+                if (shuffleButton != null) result.add(shuffleButton)
+                result.addAll(defaultButtons)
+                if (repeatButton != null) result.add(repeatButton)
+                ImmutableList.copyOf(result)
+            } catch (t: Throwable) {
+                Log.e(TAG, "Error creating notification media buttons, falling back to default", t)
+                super.getMediaButtons(session, playerCommands, customLayout, showPauseButton)
+            }
         }
     }
 
@@ -162,13 +182,14 @@ class PlaybackService : MediaSessionService() {
             session: MediaSession,
             controller: MediaSession.ControllerInfo,
         ): MediaSession.ConnectionResult {
+            Log.d(TAG, "SessionCallback onConnect from package: ${controller.packageName}")
             val connectionResult = super.onConnect(session, controller)
             val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
-                .add(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY))
-                .add(SessionCommand(ACTION_CYCLE_REPEAT, Bundle.EMPTY))
+                .add(SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle()))
+                .add(SessionCommand(ACTION_CYCLE_REPEAT, Bundle()))
                 .build()
 
-            return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
                 .setAvailablePlayerCommands(connectionResult.availablePlayerCommands)
                 .setAvailableSessionCommands(availableSessionCommands)
                 .setCustomLayout(customLayoutProvider(session.player))
@@ -182,6 +203,7 @@ class PlaybackService : MediaSessionService() {
             args: Bundle,
         ): ListenableFuture<SessionResult> {
             val player = session.player
+            Log.d(TAG, "SessionCallback onCustomCommand: ${customCommand.customAction}")
             when (customCommand.customAction) {
                 ACTION_TOGGLE_SHUFFLE -> {
                     player.shuffleModeEnabled = !player.shuffleModeEnabled
@@ -204,7 +226,9 @@ class PlaybackService : MediaSessionService() {
             startIndex: Int,
             startPositionMs: Long,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            Log.d(TAG, "onSetMediaItems: ${mediaItems.size} items, startIndex=$startIndex, startPos=$startPositionMs")
             val resolved = mediaItems.mapNotNull { resolveForPlayback(it, collectionUri) }
+            Log.d(TAG, "onSetMediaItems: resolved ${resolved.size} items")
             val validIndex = if (startIndex in resolved.indices) startIndex else 0
             return Futures.immediateFuture(
                 MediaSession.MediaItemsWithStartPosition(
@@ -219,7 +243,10 @@ class PlaybackService : MediaSessionService() {
             mediaSession: MediaSession,
             controller: MediaSession.ControllerInfo,
             mediaItems: MutableList<MediaItem>,
-        ): ListenableFuture<MutableList<MediaItem>> =
-            Futures.immediateFuture(mediaItems.mapNotNull { resolveForPlayback(it, collectionUri) }.toMutableList())
+        ): ListenableFuture<MutableList<MediaItem>> {
+            Log.d(TAG, "onAddMediaItems: ${mediaItems.size} items")
+            val resolved = mediaItems.mapNotNull { resolveForPlayback(it, collectionUri) }
+            return Futures.immediateFuture(resolved.toMutableList())
+        }
     }
 }
