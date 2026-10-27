@@ -87,6 +87,7 @@ fun NoirApp(
                 query = query,
                 sort = sort,
                 playback = playback,
+                positionMsFlow = playerViewModel.positionMs,
                 playlists = playlists,
                 selectedPlaylistWithTracks = selectedPlaylistWithTracks,
                 onQueryChange = libraryViewModel::setQuery,

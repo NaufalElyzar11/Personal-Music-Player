@@ -16,6 +16,8 @@ No accounts, no streaming subscriptions, no tracking, and no ads.
 
 - **Local & Offline-First Playback**
   - Instant discovery of local audio files via Android `MediaStore`.
+  - Right-side **`0-9` and `A-Z` Fast-Scroll Index Rail** with tap and vertical drag scrubbing to jump directly to any song in large libraries without manual scrolling.
+  - Playing a track from search results queues the full sorted library starting at that track so continuous playback is never limited to filtered search hits.
   - Supports modern granular storage permissions (`READ_MEDIA_AUDIO` on Android 13+ / API 33+, and backward-compatible `READ_EXTERNAL_STORAGE` on Android 8–12L).
   - Handles missing metadata, unknown artists, and fallback titles derived from file names.
 
@@ -154,4 +156,4 @@ Build the debug APK and run unit tests using PowerShell / Terminal:
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

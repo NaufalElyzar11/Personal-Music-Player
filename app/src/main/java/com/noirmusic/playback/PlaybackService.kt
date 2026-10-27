@@ -160,7 +160,7 @@ class PlaybackService : MediaSessionService() {
                 val shuffleButton = layout.firstOrNull { it.sessionCommand?.customAction == ACTION_TOGGLE_SHUFFLE }
                 val repeatButton = layout.firstOrNull { it.sessionCommand?.customAction == ACTION_CYCLE_REPEAT }
 
-                val defaultButtons = super.getMediaButtons(session, playerCommands, customLayout, showPauseButton)
+                val defaultButtons = super.getMediaButtons(session, playerCommands, ImmutableList.of(), showPauseButton)
                 val result = mutableListOf<CommandButton>()
                 if (shuffleButton != null) result.add(shuffleButton)
                 result.addAll(defaultButtons)
@@ -188,24 +188,8 @@ class PlaybackService : MediaSessionService() {
                 .add(SessionCommand(ACTION_CYCLE_REPEAT, Bundle()))
                 .build()
 
-            val availablePlayerCommands = Player.Commands.Builder()
+            val availablePlayerCommands = MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
                 .addAll(session.player.availableCommands)
-                .add(Player.COMMAND_PLAY_PAUSE)
-                .add(Player.COMMAND_PREPARE)
-                .add(Player.COMMAND_STOP)
-                .add(Player.COMMAND_SEEK_TO_DEFAULT_POSITION)
-                .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
-                .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
-                .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
-                .add(Player.COMMAND_SEEK_TO_MEDIA_ITEM)
-                .add(Player.COMMAND_SET_SPEED_AND_PITCH)
-                .add(Player.COMMAND_SET_SHUFFLE_MODE)
-                .add(Player.COMMAND_SET_REPEAT_MODE)
-                .add(Player.COMMAND_CHANGE_MEDIA_ITEMS)
-                .add(Player.COMMAND_GET_CURRENT_MEDIA_ITEM)
-                .add(Player.COMMAND_GET_TIMELINE)
-                .add(Player.COMMAND_GET_METADATA)
-                .add(Player.COMMAND_SET_MEDIA_ITEM)
                 .build()
 
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)

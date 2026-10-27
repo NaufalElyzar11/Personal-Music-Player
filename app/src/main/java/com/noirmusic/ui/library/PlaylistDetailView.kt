@@ -74,6 +74,7 @@ fun PlaylistDetailView(
     onRemoveTrack: (Long) -> Unit,
     onRenamePlaylist: (String) -> Unit,
     onDeletePlaylist: () -> Unit,
+    bottomBar: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -198,6 +199,7 @@ fun PlaylistDetailView(
                 ),
             )
         },
+        bottomBar = bottomBar,
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -215,7 +217,7 @@ fun PlaylistDetailView(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Cover artwork box with tactile border and DSD / HI-FI badge
+                    // Cover artwork box with tactile border
                     Box(
                         modifier = Modifier
                             .size(88.dp)
@@ -234,22 +236,6 @@ fun PlaylistDetailView(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(44.dp),
                         )
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.9f),
-                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(4.dp),
-                        ) {
-                            Text(
-                                text = "HI-FI",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
-                            )
-                        }
                     }
 
                     // Metadata details
@@ -258,7 +244,7 @@ fun PlaylistDetailView(
                         verticalArrangement = Arrangement.Center,
                     ) {
                         Text(
-                            text = "LOCAL STORAGE ARCHIVE",
+                            text = "PLAYLIST LOKAL",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.SemiBold,
@@ -274,7 +260,7 @@ fun PlaylistDetailView(
                         )
                         Spacer(Modifier.height(2.dp))
                         Text(
-                            text = "${tracks.size} tracks • $durationText",
+                            text = "${tracks.size} lagu · $durationText",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

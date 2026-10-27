@@ -109,18 +109,7 @@ fun SleepTimerDialog(
                             String.format(Locale.getDefault(), "%02d:%02d tersisa", min, sec)
                         }
 
-                        // Active Countdown Studio Banner (Stitch Screen 7)
-                        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                        val dotAlpha by infiniteTransition.animateFloat(
-                            initialValue = 0.3f,
-                            targetValue = 1.0f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(durationMillis = 800),
-                                repeatMode = RepeatMode.Reverse,
-                            ),
-                            label = "dotAlpha",
-                        )
-
+                        // Active Countdown Studio Banner
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -140,12 +129,12 @@ fun SleepTimerDialog(
                                         modifier = Modifier
                                             .size(8.dp)
                                             .background(
-                                                MaterialTheme.colorScheme.primary.copy(alpha = dotAlpha),
+                                                MaterialTheme.colorScheme.primary,
                                                 CircleShape,
                                             ),
                                     )
                                     Text(
-                                        text = "ACTIVE COUNTDOWN",
+                                        text = "TIMER AKTIF",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -160,7 +149,7 @@ fun SleepTimerDialog(
                                 if (!state.isEndOfTrack) {
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        text = "Musik akan otomatis berhenti secara bertahap",
+                                        text = "Pemutaran akan dijeda otomatis saat waktu habis",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )

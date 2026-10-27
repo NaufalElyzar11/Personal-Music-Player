@@ -127,7 +127,7 @@ private fun SyncedLyricsView(
                     targetValue = if (isActive) {
                         MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        MaterialTheme.colorScheme.outline
                     },
                     label = "lyricColor",
                 )

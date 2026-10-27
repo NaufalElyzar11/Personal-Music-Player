@@ -247,13 +247,32 @@ class PlayerViewModel(
     }
 
     fun next() = withController { c ->
+        val count = c.mediaItemCount
+        if (count <= 0) return@withController
         if (PlayerLogic.needsPrepare(c.playbackState)) c.prepare()
-        c.seekToNext()
+        if (c.hasNextMediaItem()) {
+            c.seekToNextMediaItem()
+        } else {
+            c.seekToDefaultPosition(0)
+        }
+        if (!c.playWhenReady) {
+            c.play()
+        }
     }
 
     fun previous() = withController { c ->
+        val count = c.mediaItemCount
+        if (count <= 0) return@withController
         if (PlayerLogic.needsPrepare(c.playbackState)) c.prepare()
-        c.seekToPrevious()
+        when {
+            c.currentPosition > 3_000L -> c.seekTo(0L)
+            c.hasPreviousMediaItem() -> c.seekToPreviousMediaItem()
+            count > 1 -> c.seekToDefaultPosition(count - 1)
+            else -> c.seekTo(0L)
+        }
+        if (!c.playWhenReady) {
+            c.play()
+        }
     }
 
     fun seekTo(positionMs: Long) = withController { c ->
@@ -278,7 +297,7 @@ class PlayerViewModel(
 
     private inline fun withController(crossinline block: (MediaController) -> Unit) {
         viewModelScope.launch {
-            val c = controller ?: ensureController() ?: run {
+            val c = ensureController() ?: run {
                 Log.e("PlayerViewModel", "withController failed: MediaController is not available")
                 return@launch
             }
@@ -311,7 +330,7 @@ class PlayerViewModel(
             playWhenReady = p.playWhenReady,
             durationMs = durationMs,
             hasPrevious = p.mediaItemCount > 0,
-            hasNext = p.hasNextMediaItem(),
+            hasNext = p.mediaItemCount > 0,
             shuffleEnabled = p.shuffleModeEnabled,
             repeatMode = p.repeatMode,
             queueIndex = if (p.mediaItemCount > 0) p.currentMediaItemIndex else -1,

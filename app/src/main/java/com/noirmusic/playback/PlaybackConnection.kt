@@ -30,14 +30,19 @@ class PlaybackConnection(context: Context) {
         }
 
         if (f.isDone) {
-            return try {
-                f.getUnwrapped().also {
-                    Log.d(TAG, "MediaController already connected")
-                }
+            val existing = try {
+                f.getUnwrapped()
             } catch (t: Throwable) {
                 release()
                 throw t
             }
+            if (existing.isConnected) {
+                Log.d(TAG, "MediaController already connected")
+                return existing
+            }
+            Log.w(TAG, "Cached MediaController disconnected; reconnecting")
+            release()
+            return await()
         }
 
         return suspendCancellableCoroutine { cont ->

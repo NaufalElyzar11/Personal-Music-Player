@@ -20,7 +20,7 @@ val NoirOutlineVariant = Color(0xFF343A35)   // Hairline dividers & borders (1px
 val NoirPrimary = Color(0xFFB8D96A)          // Muted lime telemetry accent
 val NoirOnPrimary = Color(0xFF263500)        // Deep olive glyph on primary
 val NoirPrimaryContainer = Color(0xFFB8D96A)
-val NoirOnPrimaryContainer = Color(0xFF465F00)
+val NoirOnPrimaryContainer = Color(0xFF263500)
 val NoirPrimaryFixed = Color(0xFFCDEF7D)
 
 // Content & Typography

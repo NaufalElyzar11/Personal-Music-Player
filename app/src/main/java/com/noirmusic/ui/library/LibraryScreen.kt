@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -64,10 +65,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,12 +82,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.noirmusic.data.media.SortOrder
+import com.noirmusic.data.media.TrackListLogic
 import com.noirmusic.data.model.Track
 import com.noirmusic.data.playlist.Playlist
 import com.noirmusic.ui.common.CenteredMessage
 import com.noirmusic.ui.common.LoadingView
 import com.noirmusic.ui.player.MiniPlayer
 import com.noirmusic.ui.player.PlaybackUiState
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 enum class LibraryTab { SONGS, PLAYLISTS }
 
@@ -95,6 +101,7 @@ fun LibraryScreen(
     query: String,
     sort: SortOrder,
     playback: PlaybackUiState,
+    positionMsFlow: StateFlow<Long>,
     playlists: List<Playlist>,
     selectedPlaylistWithTracks: Pair<Playlist, List<Track>>?,
     onQueryChange: (String) -> Unit,
@@ -111,6 +118,18 @@ fun LibraryScreen(
     onAddToPlaylist: (playlistId: String, trackId: Long) -> Unit,
     onRemoveFromPlaylist: (playlistId: String, trackId: Long) -> Unit,
 ) {
+    val miniPlayerBar: @Composable () -> Unit = {
+        if (playback.nowPlaying != null) {
+            MiniPlayer(
+                state = playback,
+                positionMsFlow = positionMsFlow,
+                onClick = onOpenNowPlaying,
+                onTogglePlayPause = onTogglePlayPause,
+                onNext = onNext,
+            )
+        }
+    }
+
     if (selectedPlaylistWithTracks != null) {
         val (playlist, tracks) = selectedPlaylistWithTracks
         PlaylistDetailView(
@@ -122,6 +141,7 @@ fun LibraryScreen(
             onRemoveTrack = { trackId -> onRemoveFromPlaylist(playlist.id, trackId) },
             onRenamePlaylist = { newName -> onRenamePlaylist(playlist.id, newName) },
             onDeletePlaylist = { onDeletePlaylist(playlist.id) },
+            bottomBar = miniPlayerBar,
         )
         return
     }
@@ -366,16 +386,7 @@ fun LibraryScreen(
                 }
             }
         },
-        bottomBar = {
-            if (playback.nowPlaying != null) {
-                MiniPlayer(
-                    state = playback,
-                    onClick = onOpenNowPlaying,
-                    onTogglePlayPause = onTogglePlayPause,
-                    onNext = onNext,
-                )
-            }
-        },
+        bottomBar = miniPlayerBar,
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -628,7 +639,7 @@ private fun PlaylistsTabContent(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = "${playlist.trackIds.size} lagu • LOCAL ARCHIVE",
+                                    text = "${playlist.trackIds.size} lagu",
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -798,22 +809,65 @@ private fun LibraryContent(
                 onAction = { onQueryChange("") },
             )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 16.dp),
-            ) {
-                itemsIndexed(
-                    items = state.visible,
-                    key = { _, t -> t.id },
-                    contentType = { _, _ -> "track" },
-                ) { index, track ->
-                    TrackRow(
-                        track = track,
-                        isCurrent = currentMediaId == track.id.toString(),
-                        onClick = { onTrackClick(state.visible, index) },
-                        onAddToPlaylist = { onAddToPlaylist(track) },
-                    )
+            val listState = rememberLazyListState()
+            val coroutineScope = rememberCoroutineScope()
+            val availableSymbols = remember(state.visible, state.sort) {
+                TrackListLogic.availableSymbolsFor(state.visible, state.sort)
+            }
+            val currentSymbol by remember(state.visible, state.sort) {
+                derivedStateOf {
+                    state.visible.getOrNull(listState.firstVisibleItemIndex)?.let {
+                        TrackListLogic.sectionCharFor(it, state.sort)
+                    }
                 }
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(end = 30.dp, bottom = 16.dp),
+                ) {
+                    itemsIndexed(
+                        items = state.visible,
+                        key = { _, t -> t.id },
+                        contentType = { _, _ -> "track" },
+                    ) { index, track ->
+                        TrackRow(
+                            track = track,
+                            isCurrent = currentMediaId == track.id.toString(),
+                            onClick = {
+                                val fullIndex = state.allSorted.indexOfFirst { it.id == track.id }
+                                if (fullIndex >= 0) {
+                                    onTrackClick(state.allSorted, fullIndex)
+                                } else {
+                                    onTrackClick(state.visible, index)
+                                }
+                            },
+                            onAddToPlaylist = { onAddToPlaylist(track) },
+                        )
+                    }
+                }
+
+                AlphabetFastScroller(
+                    availableSymbols = availableSymbols,
+                    currentSymbol = currentSymbol,
+                    onSymbolSelected = { symbol ->
+                        val targetIndex = TrackListLogic.findTargetIndexForSymbol(
+                            tracks = state.visible,
+                            symbol = symbol,
+                            sort = state.sort,
+                        )
+                        if (targetIndex != null && targetIndex in state.visible.indices) {
+                            coroutineScope.launch {
+                                listState.scrollToItem(targetIndex)
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                )
             }
         }
     }

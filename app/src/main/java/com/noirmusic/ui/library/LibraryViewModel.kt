@@ -27,6 +27,7 @@ sealed interface LibraryUiState {
     data class Error(val message: String) : LibraryUiState
     data class Content(
         val all: List<Track>,
+        val allSorted: List<Track>,
         val visible: List<Track>,
         val query: String,
         val sort: SortOrder,
@@ -78,9 +79,17 @@ class LibraryViewModel(
                 if (s.tracks.isEmpty()) {
                     LibraryUiState.Empty
                 } else {
+                    val collator = Collator.getInstance().apply { strength = Collator.PRIMARY }
+                    val sortedAll = TrackListLogic.sortTracks(s.tracks, sort, collator)
+                    val visibleTracks = if (q.isBlank()) {
+                        sortedAll
+                    } else {
+                        TrackListLogic.apply(sortedAll, q, sort, collator)
+                    }
                     LibraryUiState.Content(
                         all = s.tracks,
-                        visible = TrackListLogic.apply(s.tracks, q, sort, Collator.getInstance().apply { strength = Collator.PRIMARY }),
+                        allSorted = sortedAll,
+                        visible = visibleTracks,
                         query = q,
                         sort = sort,
                     )

@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,17 +36,21 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun MiniPlayer(
     state: PlaybackUiState,
+    positionMsFlow: StateFlow<Long>,
     onClick: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val track = state.nowPlaying ?: return
+    val positionMs by positionMsFlow.collectAsStateWithLifecycle()
     val subtitle = state.errorMessage?.let { "Gagal memutar: $it" } ?: track.displayArtist
     val subtitleColor = if (state.errorMessage != null) {
         MaterialTheme.colorScheme.error
@@ -70,10 +75,11 @@ fun MiniPlayer(
                 .height(2.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
-            val progress = if (state.durationMs > 0) {
-                // If duration available, show subtle progress if available or idle
+            val progress = if (state.durationMs > 0L) {
+                (positionMs.toFloat() / state.durationMs.toFloat()).coerceIn(0f, 1f)
+            } else {
                 0f
-            } else 0f
+            }
             if (progress > 0f) {
                 Box(
                     modifier = Modifier
@@ -178,7 +184,7 @@ fun MiniPlayer(
             IconButton(
                 onClick = onNext,
                 enabled = state.hasNext || state.repeatMode != Player.REPEAT_MODE_OFF,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(44.dp),
             ) {
                 Icon(
                     imageVector = Icons.Filled.SkipNext,
