@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -89,8 +91,13 @@ fun NowPlayingScreen(
     onStartSleepTimerEndOfTrack: () -> Unit,
     onAddSleepTimerMinutes: (Int) -> Unit,
     onCancelSleepTimer: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
     onAddToPlaylist: (() -> Unit)? = null,
     onSkipToQueueItem: (Int) -> Unit = {},
+    onMoveQueueItem: (Int, Int) -> Unit = { _, _ -> },
+    onRemoveQueueItem: (Int) -> Unit = {},
+    onClearUpcomingQueue: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val track = playback.nowPlaying
@@ -113,6 +120,9 @@ fun NowPlayingScreen(
         PlaybackQueueDialog(
             playback = playback,
             onSkipToQueueItem = onSkipToQueueItem,
+            onMoveQueueItem = onMoveQueueItem,
+            onRemoveQueueItem = onRemoveQueueItem,
+            onClearUpcomingQueue = onClearUpcomingQueue,
             onDismiss = { showQueueDialog = false },
         )
     }
@@ -247,28 +257,40 @@ fun NowPlayingScreen(
             }
         }
 
-        // 4. Title & Artist Info
-        Column(
+        // 4. Title & Artist Info + Favorite Toggle
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 4.dp),
+                .padding(start = 24.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = track?.title ?: "Tidak ada lagu",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = track?.displayArtist ?: "",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track?.title ?: "Tidak ada lagu",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = track?.displayArtist ?: "",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (track != null) {
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Hapus dari favorit" else "Tambah ke favorit",
+                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(8.dp))

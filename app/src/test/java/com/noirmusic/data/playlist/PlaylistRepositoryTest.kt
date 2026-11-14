@@ -73,4 +73,18 @@ class PlaylistRepositoryTest {
         repo.deletePlaylist(p1.id)
         assertTrue(repo.playlists.value.isEmpty())
     }
+
+    @Test
+    fun reorderTracksPersistsNewOrder() = runTest {
+        val p = repo.createPlaylist("Roadtrip")
+        repo.addTrackToPlaylist(p.id, 10L)
+        repo.addTrackToPlaylist(p.id, 20L)
+        repo.addTrackToPlaylist(p.id, 30L)
+
+        repo.reorderTracks(p.id, listOf(30L, 10L, 20L))
+        assertEquals(listOf(30L, 10L, 20L), repo.playlists.value.first().trackIds)
+
+        val reloaded = JsonPlaylistRepository(dummyContext, fileName = "test_playlists.json")
+        assertEquals(listOf(30L, 10L, 20L), reloaded.playlists.value.first().trackIds)
+    }
 }

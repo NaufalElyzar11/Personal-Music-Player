@@ -23,8 +23,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,6 +42,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -98,21 +111,47 @@ fun TrackRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     trackIndex: Int? = null,
+    isFavorite: Boolean = false,
+    subtitleSuffix: String? = null,
+    onPlayNext: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
+    onToggleFavorite: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null,
+    onMoveUp: (() -> Unit)? = null,
+    onMoveDown: (() -> Unit)? = null,
+    dragHandleModifier: Modifier? = null,
+    isDragging: Boolean = false,
 ) {
     val durationText = if (track.durationMs > 0) formatDuration(track.durationMs) else "--:--"
     val a11yLabel = "${track.title}, ${track.displayArtist}, ${spokenDuration(track.durationMs)}" +
         if (isCurrent) ", now playing" else ""
+    var menuExpanded by remember { mutableStateOf(false) }
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    val rowBackground = if (isDragging) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        Color.Transparent
+    }
+    val rowModifier = if (isDragging) {
+        modifier
+            .fillMaxWidth()
+            .background(rowBackground)
+            .border(1.dp, MaterialTheme.colorScheme.primary)
+    } else {
+        modifier
+            .fillMaxWidth()
+            .background(rowBackground)
+    }
+
+    Column(modifier = rowModifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 58.dp)
                 .semantics(mergeDescendants = true) { contentDescription = a11yLabel }
                 .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Index or Live EQ Indicator
@@ -177,8 +216,13 @@ fun TrackRow(
                 )
                 Spacer(Modifier.height(2.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val subtitle = if (subtitleSuffix.isNullOrBlank()) {
+                        track.displayArtist
+                    } else {
+                        "${track.displayArtist} · $subtitleSuffix"
+                    }
                     Text(
-                        text = track.displayArtist,
+                        text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -186,6 +230,16 @@ fun TrackRow(
                         modifier = Modifier.weight(1f, fill = false),
                     )
                 }
+            }
+
+            if (isFavorite) {
+                Spacer(Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = "Lagu favorit",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
+                )
             }
 
             Spacer(Modifier.width(8.dp))
@@ -198,7 +252,136 @@ fun TrackRow(
             )
 
             // Options action
-            if (onRemoveFromPlaylist != null) {
+            val hasMenuActions = onPlayNext != null ||
+                onAddToQueue != null ||
+                onToggleFavorite != null ||
+                onMoveUp != null ||
+                onMoveDown != null
+
+            if (hasMenuActions) {
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "Opsi lagu ${track.title}",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        if (onPlayNext != null) {
+                            DropdownMenuItem(
+                                text = { Text("Putar Berikutnya") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onPlayNext()
+                                },
+                            )
+                        }
+                        if (onAddToQueue != null) {
+                            DropdownMenuItem(
+                                text = { Text("Tambahkan ke Antrean") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onAddToQueue()
+                                },
+                            )
+                        }
+                        if (onToggleFavorite != null) {
+                            DropdownMenuItem(
+                                text = { Text(if (isFavorite) "Hapus dari Favorit" else "Tambah ke Favorit") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                        contentDescription = null,
+                                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onToggleFavorite()
+                                },
+                            )
+                        }
+                        if (onAddToPlaylist != null) {
+                            DropdownMenuItem(
+                                text = { Text("Tambah ke Playlist") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onAddToPlaylist()
+                                },
+                            )
+                        }
+                        if (onMoveUp != null) {
+                            DropdownMenuItem(
+                                text = { Text("Geser ke Atas") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowUpward,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMoveUp()
+                                },
+                            )
+                        }
+                        if (onMoveDown != null) {
+                            DropdownMenuItem(
+                                text = { Text("Geser ke Bawah") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowDownward,
+                                        contentDescription = null,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMoveDown()
+                                },
+                            )
+                        }
+                        if (onRemoveFromPlaylist != null) {
+                            DropdownMenuItem(
+                                text = { Text("Hapus dari Playlist") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Delete,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onRemoveFromPlaylist()
+                                },
+                            )
+                        }
+                    }
+                }
+            } else if (onRemoveFromPlaylist != null) {
                 IconButton(onClick = onRemoveFromPlaylist) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
@@ -213,6 +396,22 @@ fun TrackRow(
                         imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                         contentDescription = "Tambah ke playlist",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+
+            if (dragHandleModifier != null) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .then(dragHandleModifier),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DragHandle,
+                        contentDescription = "Geser untuk mengurutkan",
+                        tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp),
                     )
                 }

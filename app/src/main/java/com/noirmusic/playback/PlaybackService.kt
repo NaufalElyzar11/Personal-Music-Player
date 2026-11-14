@@ -25,6 +25,15 @@ import com.noirmusic.MainActivity
 import com.noirmusic.NoirApplication
 import com.noirmusic.R
 import com.noirmusic.data.media.MediaStoreTrackRepository
+import com.noirmusic.data.preferences.PlaybackSnapshot
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 const val ACTION_TOGGLE_SHUFFLE = "com.noirmusic.ACTION_TOGGLE_SHUFFLE"
 const val ACTION_CYCLE_REPEAT = "com.noirmusic.ACTION_CYCLE_REPEAT"
@@ -34,6 +43,9 @@ private const val TAG = "PlaybackService"
 class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var snapshotTickerJob: Job? = null
+    private var recordedCurrentPlay = false
 
     override fun onCreate() {
         super.onCreate()
@@ -75,28 +87,112 @@ class PlaybackService : MediaSessionService() {
             Log.e(TAG, "Error configuring media notification provider", t)
         }
 
+        val container = (application as? NoirApplication)?.container
+        container?.sleepTimerManager?.attachPlayer(player)
+
         player.addListener(object : Player.Listener {
             override fun onRepeatModeChanged(repeatMode: Int) {
                 mediaSession?.let { it.setCustomLayout(buildCustomLayout(player)) }
+                persistSnapshot(player)
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                 mediaSession?.let { it.setCustomLayout(buildCustomLayout(player)) }
+                persistSnapshot(player)
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (player.playWhenReady) {
+                    val trackId = mediaItem?.mediaId?.toLongOrNull()
+                    if (trackId != null) {
+                        recordedCurrentPlay = true
+                        serviceScope.launch { container?.trackStatsRepository?.recordPlay(trackId) }
+                    } else {
+                        recordedCurrentPlay = false
+                    }
+                } else {
+                    recordedCurrentPlay = false
+                }
+                persistSnapshot(player)
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    if (!recordedCurrentPlay) {
+                        val trackId = player.currentMediaItem?.mediaId?.toLongOrNull()
+                        if (trackId != null) {
+                            recordedCurrentPlay = true
+                            serviceScope.launch { container?.trackStatsRepository?.recordPlay(trackId) }
+                        }
+                    }
+                    startSnapshotTicker(player)
+                } else {
+                    snapshotTickerJob?.cancel()
+                    snapshotTickerJob = null
+                    persistSnapshot(player)
+                }
+            }
+
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                    persistSnapshot(player)
+                }
+            }
+
+            override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+                if (player.mediaItemCount > 0) {
+                    persistSnapshot(player)
+                }
             }
 
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 Log.e(TAG, "ExoPlayer onPlayerError: [${error.errorCodeName}] ${error.message}", error)
             }
         })
+    }
 
-        val container = (application as? NoirApplication)?.container
-        container?.sleepTimerManager?.attachPlayer(player)
+    private fun startSnapshotTicker(player: Player) {
+        snapshotTickerJob?.cancel()
+        snapshotTickerJob = serviceScope.launch {
+            while (isActive) {
+                delay(10_000L)
+                persistSnapshot(player)
+            }
+        }
+    }
+
+    private fun persistSnapshot(player: Player) {
+        val container = (application as? NoirApplication)?.container ?: return
+        val store = container.playbackStateStore
+        val count = player.mediaItemCount
+        if (count <= 0) return
+        val ids = (0 until count).mapNotNull { idx ->
+            player.getMediaItemAt(idx).mediaId.toLongOrNull()
+        }
+        if (ids.isEmpty()) return
+        val snapshot = PlaybackSnapshot(
+            queueTrackIds = ids,
+            currentIndex = player.currentMediaItemIndex.coerceIn(0, ids.lastIndex),
+            positionMs = player.currentPosition.coerceAtLeast(0L),
+            shuffleEnabled = player.shuffleModeEnabled,
+            repeatMode = player.repeatMode,
+        )
+        container.appScope.launch {
+            store.save(snapshot)
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player
+        if (player != null) {
+            persistSnapshot(player)
+        }
         if (player == null ||
             !player.playWhenReady ||
             player.mediaItemCount == 0 ||
@@ -108,6 +204,9 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         Log.i(TAG, "PlaybackService onDestroy")
+        snapshotTickerJob?.cancel()
+        mediaSession?.player?.let(::persistSnapshot)
+        serviceScope.cancel()
         val container = (application as? NoirApplication)?.container
         container?.sleepTimerManager?.detachPlayer()
 

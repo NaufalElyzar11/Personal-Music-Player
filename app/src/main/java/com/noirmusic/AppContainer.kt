@@ -5,6 +5,10 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.noirmusic.data.local.NoirDatabase
+import com.noirmusic.data.local.RoomLyricsDiskCache
+import com.noirmusic.data.local.RoomTrackStatsRepository
+import com.noirmusic.data.local.TrackStatsRepository
 import com.noirmusic.data.lyrics.HttpErrorMapping
 import com.noirmusic.data.lyrics.LrclibApi
 import com.noirmusic.data.lyrics.LrclibJson
@@ -13,6 +17,8 @@ import com.noirmusic.data.media.MediaStoreTrackRepository
 import com.noirmusic.data.media.TrackRepository
 import com.noirmusic.data.playlist.JsonPlaylistRepository
 import com.noirmusic.data.playlist.PlaylistRepository
+import com.noirmusic.data.preferences.DataStorePlaybackPreferencesStore
+import com.noirmusic.data.preferences.PlaybackStateStore
 import com.noirmusic.playback.PlaybackConnection
 import com.noirmusic.playback.SleepTimerManager
 import com.noirmusic.ui.library.LibraryViewModel
@@ -33,6 +39,16 @@ class AppContainer(context: Context) {
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val sleepTimerManager: SleepTimerManager by lazy { SleepTimerManager(appScope) }
+
+    val database: NoirDatabase by lazy { NoirDatabase.create(appContext) }
+
+    val trackStatsRepository: TrackStatsRepository by lazy {
+        RoomTrackStatsRepository(database.trackStatsDao())
+    }
+
+    val playbackStateStore: PlaybackStateStore by lazy {
+        DataStorePlaybackPreferencesStore(appContext)
+    }
 
     val playlistRepository: PlaylistRepository by lazy { JsonPlaylistRepository(appContext) }
 
@@ -59,16 +75,25 @@ class AppContainer(context: Context) {
             api = LrclibApi(okHttpClient, LrclibJson, "https://lrclib.net/".toHttpUrl()),
             scope = appScope,
             clock = SystemClock::elapsedRealtime,
+            diskCache = RoomLyricsDiskCache(database.lyricsCacheDao()),
         )
     }
 
     val trackRepository: TrackRepository by lazy { MediaStoreTrackRepository(appContext.contentResolver) }
 
     val libraryViewModelFactory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { LibraryViewModel(trackRepository, playlistRepository) }
+        initializer { LibraryViewModel(trackRepository, playlistRepository, trackStatsRepository) }
     }
 
     val playerViewModelFactory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { PlayerViewModel(PlaybackConnection(appContext), lyricsRepository, sleepTimerManager) }
+        initializer {
+            PlayerViewModel(
+                connection = PlaybackConnection(appContext),
+                lyricsRepository = lyricsRepository,
+                sleepTimerManager = sleepTimerManager,
+                trackStatsRepository = trackStatsRepository,
+                playbackStateStore = playbackStateStore,
+            )
+        }
     }
 }

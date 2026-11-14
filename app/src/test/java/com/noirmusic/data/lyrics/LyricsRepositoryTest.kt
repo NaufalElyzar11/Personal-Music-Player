@@ -198,4 +198,43 @@ class LyricsRepositoryTest {
         assertEquals(LyricsResult.NotFound, repo.getLyrics(query(id = "nf")))
         assertEquals(beforeCalls + 2, fake.getCalls + fake.searchCalls)
     }
+
+    @Test
+    fun servesPersistedLyricsFromDiskCacheWhenOfflineAndSupportsForceRefresh() = runTest {
+        val store = HashMap<String, LyricsResult>()
+        val diskCache = object : LyricsDiskCache {
+            override suspend fun get(cacheKey: String): LyricsResult? = store[cacheKey]
+            override suspend fun put(cacheKey: String, mediaId: String, result: LyricsResult) {
+                store[cacheKey] = result
+            }
+            override suspend fun remove(cacheKey: String) {
+                store.remove(cacheKey)
+            }
+        }
+
+        val q = query(id = "disk1")
+        val fakeOnline = FakeLrclibDataSource().apply {
+            onGet = { _, _, _ -> ApiResult.Success(validSyncedDto()) }
+        }
+        val repo1 = LyricsRepository(fakeOnline, backgroundScope, clock = { 0L }, diskCache = diskCache)
+        val fetched = repo1.getLyrics(q)
+        assertTrue(fetched is LyricsResult.Synced)
+        assertTrue(store.containsKey(q.cacheKey))
+
+        // New repository instance with empty RAM cache and offline API serves from disk cache.
+        val fakeOffline = FakeLrclibDataSource().apply {
+            onGet = { _, _, _ -> ApiResult.Failure(LyricsError.Offline) }
+        }
+        val repo2 = LyricsRepository(fakeOffline, backgroundScope, clock = { 0L }, diskCache = diskCache)
+        val offlineResult = repo2.getLyrics(q)
+        assertEquals(fetched, offlineResult)
+        assertEquals(0, fakeOffline.getCalls)
+
+        // Force refresh bypasses both caches and hits network.
+        val updatedDto = validSyncedDto().copy(syncedLyrics = "[00:10.00]Updated line")
+        fakeOffline.onGet = { _, _, _ -> ApiResult.Success(updatedDto) }
+        val refreshed = repo2.getLyrics(q, forceRefresh = true)
+        assertEquals(1, fakeOffline.getCalls)
+        assertEquals(listOf(LyricLine(10_000L, "Updated line")), (refreshed as LyricsResult.Synced).lines)
+    }
 }

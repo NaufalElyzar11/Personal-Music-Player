@@ -10,8 +10,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.math.ceil
 
 /**
- * Lyrics lookup policy: in-memory cache → in-flight de-duplication → 429 cooldown → `/api/get` → validated
- * `/api/search`. At most two HTTP requests per lookup, no automatic retries, nothing persisted to disk.
+ * Lyrics lookup policy: in-memory cache → persistent disk cache → in-flight de-duplication →
+ * 429 cooldown → `/api/get` → validated `/api/search`. At most two HTTP requests per lookup, no automatic retries.
  *
  * @param scope long-lived scope used for shared in-flight requests, so a cancelled collector doesn't cancel a request
  *   another caller is waiting on.
@@ -22,6 +22,7 @@ class LyricsRepository(
     private val scope: CoroutineScope,
     private val clock: () -> Long,
     private val cacheSize: Int = 100,
+    private val diskCache: LyricsDiskCache = NoOpLyricsDiskCache,
 ) {
     private val mutex = Mutex()
     private val cache = object : LinkedHashMap<String, LyricsResult>(16, 0.75f, true) {
@@ -35,12 +36,23 @@ class LyricsRepository(
     /** Returns a cached definitive result without any network access, or `null`. */
     fun cached(query: LyricsQuery): LyricsResult? = synchronized(cache) { cache[query.cacheKey] }
 
-    suspend fun getLyrics(query: LyricsQuery): LyricsResult {
+    suspend fun getLyrics(query: LyricsQuery, forceRefresh: Boolean = false): LyricsResult {
         val key = query.cacheKey
-        cached(query)?.let { return it }
+        if (!forceRefresh) {
+            cached(query)?.let { return it }
+            diskCache.get(key)?.let { persisted ->
+                synchronized(cache) { cache[key] = persisted }
+                return persisted
+            }
+        } else {
+            synchronized(cache) { cache.remove(key) }
+            diskCache.remove(key)
+        }
 
         val deferred = mutex.withLock {
-            cached(query)?.let { return it }
+            if (!forceRefresh) {
+                cached(query)?.let { return it }
+            }
             inFlight[key]?.let { return@withLock it }
 
             val until = cooldownUntilMs
@@ -53,7 +65,12 @@ class LyricsRepository(
             scope.async {
                 try {
                     val result = lookup(query)
-                    if (result !is LyricsResult.Failed) synchronized(cache) { cache[key] = result }
+                    if (result !is LyricsResult.Failed) {
+                        synchronized(cache) { cache[key] = result }
+                        if (result !is LyricsResult.NotSearchable) {
+                            diskCache.put(key, query.mediaId, result)
+                        }
+                    }
                     result
                 } finally {
                     withContext(NonCancellable) { mutex.withLock { inFlight.remove(key) } }

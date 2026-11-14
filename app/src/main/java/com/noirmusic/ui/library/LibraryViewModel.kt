@@ -2,6 +2,7 @@ package com.noirmusic.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.noirmusic.data.local.TrackStatsRepository
 import com.noirmusic.data.media.SortOrder
 import com.noirmusic.data.media.TrackListLogic
 import com.noirmusic.data.media.TrackRepository
@@ -20,6 +21,12 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.Collator
+
+data class TrackPlayEntry(
+    val track: Track,
+    val playCount: Int,
+    val lastPlayedAtMs: Long?,
+)
 
 sealed interface LibraryUiState {
     data object Loading : LibraryUiState
@@ -44,6 +51,7 @@ private sealed interface ScanState {
 class LibraryViewModel(
     private val repository: TrackRepository,
     private val playlistRepository: PlaylistRepository,
+    private val trackStatsRepository: TrackStatsRepository,
 ) : ViewModel() {
 
     private val scan = MutableStateFlow<ScanState>(ScanState.Idle)
@@ -54,6 +62,34 @@ class LibraryViewModel(
     private var scanJob: Job? = null
 
     val playlists: StateFlow<List<Playlist>> = playlistRepository.playlists
+
+    val favoriteIds: StateFlow<Set<Long>> = trackStatsRepository.favoriteIds
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val favoriteTracks: StateFlow<List<Track>> = combine(scan, favoriteIds) { s, favIds ->
+        val allTracks = (s as? ScanState.Loaded)?.tracks ?: return@combine emptyList()
+        allTracks.filter { favIds.contains(it.id) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val recentTracks: StateFlow<List<TrackPlayEntry>> = combine(scan, trackStatsRepository.recentStats) { s, stats ->
+        val allTracks = (s as? ScanState.Loaded)?.tracks ?: return@combine emptyList()
+        val byId = allTracks.associateBy { it.id }
+        stats.mapNotNull { st ->
+            byId[st.trackId]?.let { track ->
+                TrackPlayEntry(track = track, playCount = st.playCount, lastPlayedAtMs = st.lastPlayedAtMs)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val mostPlayedTracks: StateFlow<List<TrackPlayEntry>> = combine(scan, trackStatsRepository.mostPlayedStats) { s, stats ->
+        val allTracks = (s as? ScanState.Loaded)?.tracks ?: return@combine emptyList()
+        val byId = allTracks.associateBy { it.id }
+        stats.mapNotNull { st ->
+            byId[st.trackId]?.let { track ->
+                TrackPlayEntry(track = track, playCount = st.playCount, lastPlayedAtMs = st.lastPlayedAtMs)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _selectedPlaylistId = MutableStateFlow<String?>(null)
     val selectedPlaylistId: StateFlow<String?> = _selectedPlaylistId.asStateFlow()
@@ -158,6 +194,18 @@ class LibraryViewModel(
     fun removeTrackFromPlaylist(playlistId: String, trackId: Long) {
         viewModelScope.launch {
             playlistRepository.removeTrackFromPlaylist(playlistId, trackId)
+        }
+    }
+
+    fun reorderPlaylistTracks(playlistId: String, newTrackIds: List<Long>) {
+        viewModelScope.launch {
+            playlistRepository.reorderTracks(playlistId, newTrackIds)
+        }
+    }
+
+    fun toggleFavorite(trackId: Long) {
+        viewModelScope.launch {
+            trackStatsRepository.toggleFavorite(trackId)
         }
     }
 }

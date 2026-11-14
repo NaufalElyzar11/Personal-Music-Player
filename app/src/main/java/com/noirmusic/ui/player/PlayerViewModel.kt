@@ -9,9 +9,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import com.noirmusic.data.local.TrackStatsRepository
 import com.noirmusic.data.lyrics.LyricsRepository
 import com.noirmusic.data.lyrics.LyricsSync
 import com.noirmusic.data.model.Track
+import com.noirmusic.data.preferences.PlaybackStateStore
 import com.noirmusic.playback.EXTRA_TITLE_FROM_FILE_NAME
 import com.noirmusic.playback.PlayPauseAction
 import com.noirmusic.playback.PlaybackConnection
@@ -56,10 +58,14 @@ class PlayerViewModel(
     private val connection: PlaybackConnection,
     private val lyricsRepository: LyricsRepository,
     private val sleepTimerManager: SleepTimerManager,
+    private val trackStatsRepository: TrackStatsRepository,
+    private val playbackStateStore: PlaybackStateStore,
 ) : ViewModel() {
 
     private var controller: MediaController? = null
     private val controllerReady = CompletableDeferred<MediaController?>()
+    private var restoreAttempted = false
+    private var forceRefreshCacheKey: String? = null
 
     private val _playbackState = MutableStateFlow(PlaybackUiState())
     val playbackState: StateFlow<PlaybackUiState> = _playbackState.asStateFlow()
@@ -161,19 +167,28 @@ class PlayerViewModel(
             if (query == null) {
                 flowOf(LyricsUiState.NoTrack)
             } else {
-                val cached = lyricsRepository.cached(query)
+                val force = forceRefreshCacheKey == query.cacheKey
+                if (force) forceRefreshCacheKey = null
+                val cached = if (force) null else lyricsRepository.cached(query)
                 if (cached != null) {
                     flowOf(cached.toUiState())
                 } else {
                     flow {
                         emit(LyricsUiState.Loading)
-                        delay(500L)
-                        emit(lyricsRepository.getLyrics(query).toUiState())
+                        delay(if (force) 0L else 500L)
+                        emit(lyricsRepository.getLyrics(query, forceRefresh = force).toUiState())
                     }
                 }
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LyricsUiState.NoTrack)
+
+    val isCurrentFavorite: StateFlow<Boolean> = combine(
+        _playbackState.map { it.nowPlaying?.mediaId?.toLongOrNull() }.distinctUntilChanged(),
+        trackStatsRepository.favoriteIds,
+    ) { id, favIds ->
+        id != null && favIds.contains(id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val activeLineIndex: StateFlow<Int> = combine(lyricsState, positionMs) { state, pos ->
         if (state is LyricsUiState.Synced) LyricsSync.indexAt(state.lines, pos) else -1
@@ -214,7 +229,36 @@ class PlayerViewModel(
     }
 
     fun retryLyrics() {
+        forceRefreshCacheKey = _playbackState.value.nowPlaying?.toLyricsQuery()?.cacheKey
         retryNonce.value += 1L
+    }
+
+    fun toggleCurrentFavorite() {
+        val trackId = _playbackState.value.nowPlaying?.mediaId?.toLongOrNull() ?: return
+        viewModelScope.launch {
+            trackStatsRepository.toggleFavorite(trackId)
+        }
+    }
+
+    fun restoreLastSessionIfEmpty(availableTracks: List<Track>) {
+        if (restoreAttempted || availableTracks.isEmpty()) return
+        restoreAttempted = true
+        viewModelScope.launch {
+            val c = ensureController() ?: return@launch
+            if (c.mediaItemCount > 0) return@launch
+            val snapshot = playbackStateStore.readLatest() ?: return@launch
+            c.shuffleModeEnabled = snapshot.shuffleEnabled
+            c.repeatMode = snapshot.repeatMode
+            val restored = PlayerLogic.resolveRestoredQueue(snapshot, availableTracks) ?: return@launch
+            if (c.mediaItemCount == 0) {
+                c.setMediaItems(
+                    restored.tracks.map { it.toMediaItem() },
+                    restored.startIndex,
+                    restored.positionMs,
+                )
+                c.prepare()
+            }
+        }
     }
 
     fun playQueue(tracks: List<Track>, startIndex: Int) {
@@ -284,6 +328,53 @@ class PlayerViewModel(
         if (index in 0 until c.mediaItemCount) {
             c.seekToDefaultPosition(index)
             c.play()
+        }
+    }
+
+    fun playNext(track: Track) = withController { c ->
+        val mediaItem = track.toMediaItem()
+        if (c.mediaItemCount == 0) {
+            c.setMediaItems(listOf(mediaItem), 0, 0L)
+            c.prepare()
+            c.play()
+        } else {
+            val insertIndex = PlayerLogic.playNextInsertIndex(c.currentMediaItemIndex, c.mediaItemCount)
+            c.addMediaItem(insertIndex, mediaItem)
+        }
+    }
+
+    fun addToQueue(track: Track) = withController { c ->
+        val mediaItem = track.toMediaItem()
+        if (c.mediaItemCount == 0) {
+            c.setMediaItems(listOf(mediaItem), 0, 0L)
+            c.prepare()
+            c.play()
+        } else {
+            c.addMediaItem(mediaItem)
+        }
+    }
+
+    fun removeFromQueue(index: Int) = withController { c ->
+        if (index in 0 until c.mediaItemCount) {
+            val removingLast = c.mediaItemCount == 1
+            c.removeMediaItem(index)
+            if (removingLast) {
+                viewModelScope.launch { playbackStateStore.clear() }
+            }
+        }
+    }
+
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) = withController { c ->
+        if (PlayerLogic.canMoveItem(fromIndex, toIndex, c.mediaItemCount)) {
+            c.moveMediaItem(fromIndex, toIndex)
+        }
+    }
+
+    fun clearUpcomingQueue() = withController { c ->
+        val current = c.currentMediaItemIndex
+        val count = c.mediaItemCount
+        if (PlayerLogic.canClearUpcoming(current, count)) {
+            c.removeMediaItems(current + 1, count)
         }
     }
 

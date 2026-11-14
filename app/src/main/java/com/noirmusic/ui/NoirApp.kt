@@ -45,10 +45,20 @@ fun NoirApp(
         val query by libraryViewModel.query.collectAsStateWithLifecycle()
         val sort by libraryViewModel.sort.collectAsStateWithLifecycle()
         val playlists by libraryViewModel.playlists.collectAsStateWithLifecycle()
+        val favoriteIds by libraryViewModel.favoriteIds.collectAsStateWithLifecycle()
+        val favoriteTracks by libraryViewModel.favoriteTracks.collectAsStateWithLifecycle()
+        val recentTracks by libraryViewModel.recentTracks.collectAsStateWithLifecycle()
+        val mostPlayedTracks by libraryViewModel.mostPlayedTracks.collectAsStateWithLifecycle()
         val selectedPlaylistWithTracks by libraryViewModel.selectedPlaylistWithTracks.collectAsStateWithLifecycle()
 
         val playback by playerViewModel.playbackState.collectAsStateWithLifecycle()
         val pane by playerViewModel.nowPlayingPane.collectAsStateWithLifecycle()
+        val isCurrentFavorite by playerViewModel.isCurrentFavorite.collectAsStateWithLifecycle()
+
+        LaunchedEffect(libraryState) {
+            val content = libraryState as? LibraryUiState.Content ?: return@LaunchedEffect
+            playerViewModel.restoreLastSessionIfEmpty(content.all)
+        }
 
         LaunchedEffect(shouldOpenPlayer) {
             if (shouldOpenPlayer) {
@@ -89,6 +99,10 @@ fun NoirApp(
                 playback = playback,
                 positionMsFlow = playerViewModel.positionMs,
                 playlists = playlists,
+                favoriteIds = favoriteIds,
+                favoriteTracks = favoriteTracks,
+                recentTracks = recentTracks,
+                mostPlayedTracks = mostPlayedTracks,
                 selectedPlaylistWithTracks = selectedPlaylistWithTracks,
                 onQueryChange = libraryViewModel::setQuery,
                 onSortChange = libraryViewModel::setSort,
@@ -97,6 +111,9 @@ fun NoirApp(
                     playerViewModel.playQueue(tracks, index)
                     nowPlayingOpen = true
                 },
+                onPlayNext = playerViewModel::playNext,
+                onAddToQueue = playerViewModel::addToQueue,
+                onToggleFavorite = libraryViewModel::toggleFavorite,
                 onTogglePlayPause = playerViewModel::togglePlayPause,
                 onNext = playerViewModel::next,
                 onOpenNowPlaying = { nowPlayingOpen = true },
@@ -108,6 +125,7 @@ fun NoirApp(
                 onRenamePlaylist = libraryViewModel::renamePlaylist,
                 onAddToPlaylist = libraryViewModel::addTrackToPlaylist,
                 onRemoveFromPlaylist = libraryViewModel::removeTrackFromPlaylist,
+                onReorderPlaylistTracks = libraryViewModel::reorderPlaylistTracks,
             )
 
             AnimatedVisibility(
@@ -140,7 +158,12 @@ fun NoirApp(
                     onStartSleepTimerEndOfTrack = playerViewModel::startSleepTimerEndOfTrack,
                     onAddSleepTimerMinutes = playerViewModel::addSleepTimerMinutes,
                     onCancelSleepTimer = playerViewModel::cancelSleepTimer,
+                    isFavorite = isCurrentFavorite,
+                    onToggleFavorite = playerViewModel::toggleCurrentFavorite,
                     onSkipToQueueItem = playerViewModel::skipToQueueItem,
+                    onMoveQueueItem = playerViewModel::moveQueueItem,
+                    onRemoveQueueItem = playerViewModel::removeFromQueue,
+                    onClearUpcomingQueue = playerViewModel::clearUpcomingQueue,
                     onAddToPlaylist = currentTrack?.let { track ->
                         { trackToAddFromNowPlaying = track }
                     },

@@ -33,9 +33,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
@@ -55,6 +58,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -92,7 +100,7 @@ import com.noirmusic.ui.player.PlaybackUiState
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-enum class LibraryTab { SONGS, PLAYLISTS }
+enum class LibraryTab { SONGS, FAVORITES, HISTORY, PLAYLISTS }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,11 +111,18 @@ fun LibraryScreen(
     playback: PlaybackUiState,
     positionMsFlow: StateFlow<Long>,
     playlists: List<Playlist>,
+    favoriteIds: Set<Long>,
+    favoriteTracks: List<Track>,
+    recentTracks: List<TrackPlayEntry>,
+    mostPlayedTracks: List<TrackPlayEntry>,
     selectedPlaylistWithTracks: Pair<Playlist, List<Track>>?,
     onQueryChange: (String) -> Unit,
     onSortChange: (SortOrder) -> Unit,
     onRefresh: () -> Unit,
     onTrackClick: (List<Track>, Int) -> Unit,
+    onPlayNext: (Track) -> Unit,
+    onAddToQueue: (Track) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
     onTogglePlayPause: () -> Unit,
     onNext: () -> Unit,
     onOpenNowPlaying: () -> Unit,
@@ -117,6 +132,7 @@ fun LibraryScreen(
     onRenamePlaylist: (id: String, newName: String) -> Unit,
     onAddToPlaylist: (playlistId: String, trackId: Long) -> Unit,
     onRemoveFromPlaylist: (playlistId: String, trackId: Long) -> Unit,
+    onReorderPlaylistTracks: (playlistId: String, newTrackIds: List<Long>) -> Unit,
 ) {
     val miniPlayerBar: @Composable () -> Unit = {
         if (playback.nowPlaying != null) {
@@ -135,10 +151,15 @@ fun LibraryScreen(
         PlaylistDetailView(
             playlist = playlist,
             tracks = tracks,
+            favoriteIds = favoriteIds,
             currentMediaId = playback.nowPlaying?.mediaId,
             onBack = { onSelectPlaylist(null) },
             onPlayTrack = onTrackClick,
+            onPlayNext = onPlayNext,
+            onAddToQueue = onAddToQueue,
+            onToggleFavorite = onToggleFavorite,
             onRemoveTrack = { trackId -> onRemoveFromPlaylist(playlist.id, trackId) },
+            onReorderTracks = { newTrackIds -> onReorderPlaylistTracks(playlist.id, newTrackIds) },
             onRenamePlaylist = { newName -> onRenamePlaylist(playlist.id, newName) },
             onDeletePlaylist = { onDeletePlaylist(playlist.id) },
             bottomBar = miniPlayerBar,
@@ -151,6 +172,8 @@ fun LibraryScreen(
     var trackToAddToPlaylist by remember { mutableStateOf<Track?>(null) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistNameText by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
 
     if (showCreatePlaylistDialog) {
         AlertDialog(
@@ -281,7 +304,7 @@ fun LibraryScreen(
                                     }
                                 }
                             }
-                        } else {
+                        } else if (selectedTabIndex == LibraryTab.PLAYLISTS.ordinal) {
                             IconButton(onClick = {
                                 newPlaylistNameText = ""
                                 showCreatePlaylistDialog = true
@@ -371,22 +394,30 @@ fun LibraryScreen(
                     contentColor = MaterialTheme.colorScheme.primary,
                 ) {
                     Tab(
-                        selected = selectedTabIndex == 0,
-                        onClick = { selectedTabIndex = 0 },
-                        text = {
-                            val count = (state as? LibraryUiState.Content)?.all?.size
-                            Text(if (count != null) "Lagu ($count)" else "Lagu")
-                        },
+                        selected = selectedTabIndex == LibraryTab.SONGS.ordinal,
+                        onClick = { selectedTabIndex = LibraryTab.SONGS.ordinal },
+                        text = { Text("Lagu") },
                     )
                     Tab(
-                        selected = selectedTabIndex == 1,
-                        onClick = { selectedTabIndex = 1 },
-                        text = { Text("Playlist (${playlists.size})") },
+                        selected = selectedTabIndex == LibraryTab.FAVORITES.ordinal,
+                        onClick = { selectedTabIndex = LibraryTab.FAVORITES.ordinal },
+                        text = { Text("Favorit") },
+                    )
+                    Tab(
+                        selected = selectedTabIndex == LibraryTab.HISTORY.ordinal,
+                        onClick = { selectedTabIndex = LibraryTab.HISTORY.ordinal },
+                        text = { Text("Riwayat") },
+                    )
+                    Tab(
+                        selected = selectedTabIndex == LibraryTab.PLAYLISTS.ordinal,
+                        onClick = { selectedTabIndex = LibraryTab.PLAYLISTS.ordinal },
+                        text = { Text("Playlist") },
                     )
                 }
             }
         },
         bottomBar = miniPlayerBar,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -394,7 +425,7 @@ fun LibraryScreen(
                 .padding(innerPadding),
         ) {
             when (selectedTabIndex) {
-                0 -> {
+                LibraryTab.SONGS.ordinal -> {
                     when (state) {
                         LibraryUiState.Loading -> LoadingView("Memindai file musik…")
                         LibraryUiState.Empty -> CenteredMessage(
@@ -414,14 +445,74 @@ fun LibraryScreen(
                         is LibraryUiState.Content -> LibraryContent(
                             state = state,
                             query = query,
+                            favoriteIds = favoriteIds,
                             currentMediaId = playback.nowPlaying?.mediaId,
                             onQueryChange = onQueryChange,
                             onTrackClick = onTrackClick,
+                            onPlayNext = { track ->
+                                onPlayNext(track)
+                                snackbarScope.launch {
+                                    snackbarHostState.showSnackbar("Putar berikutnya: ${track.title}")
+                                }
+                            },
+                            onAddToQueue = { track ->
+                                onAddToQueue(track)
+                                snackbarScope.launch {
+                                    snackbarHostState.showSnackbar("Ditambahkan ke antrean: ${track.title}")
+                                }
+                            },
+                            onToggleFavorite = onToggleFavorite,
                             onAddToPlaylist = { track -> trackToAddToPlaylist = track },
                         )
                     }
                 }
-                1 -> {
+                LibraryTab.FAVORITES.ordinal -> {
+                    FavoritesTabContent(
+                        tracks = favoriteTracks,
+                        currentMediaId = playback.nowPlaying?.mediaId,
+                        onTrackClick = onTrackClick,
+                        onPlayNext = { track ->
+                            onPlayNext(track)
+                            snackbarScope.launch {
+                                snackbarHostState.showSnackbar("Putar berikutnya: ${track.title}")
+                            }
+                        },
+                        onAddToQueue = { track ->
+                            onAddToQueue(track)
+                            snackbarScope.launch {
+                                snackbarHostState.showSnackbar("Ditambahkan ke antrean: ${track.title}")
+                            }
+                        },
+                        onToggleFavorite = onToggleFavorite,
+                        onAddToPlaylist = { track -> trackToAddToPlaylist = track },
+                        onExploreSongs = { selectedTabIndex = LibraryTab.SONGS.ordinal },
+                    )
+                }
+                LibraryTab.HISTORY.ordinal -> {
+                    HistoryTabContent(
+                        recentTracks = recentTracks,
+                        mostPlayedTracks = mostPlayedTracks,
+                        favoriteIds = favoriteIds,
+                        currentMediaId = playback.nowPlaying?.mediaId,
+                        onTrackClick = onTrackClick,
+                        onPlayNext = { track ->
+                            onPlayNext(track)
+                            snackbarScope.launch {
+                                snackbarHostState.showSnackbar("Putar berikutnya: ${track.title}")
+                            }
+                        },
+                        onAddToQueue = { track ->
+                            onAddToQueue(track)
+                            snackbarScope.launch {
+                                snackbarHostState.showSnackbar("Ditambahkan ke antrean: ${track.title}")
+                            }
+                        },
+                        onToggleFavorite = onToggleFavorite,
+                        onAddToPlaylist = { track -> trackToAddToPlaylist = track },
+                        onExploreSongs = { selectedTabIndex = LibraryTab.SONGS.ordinal },
+                    )
+                }
+                LibraryTab.PLAYLISTS.ordinal -> {
                     PlaylistsTabContent(
                         playlists = playlists,
                         onSelectPlaylist = onSelectPlaylist,
@@ -694,9 +785,13 @@ private fun PlaylistsTabContent(
 private fun LibraryContent(
     state: LibraryUiState.Content,
     query: String,
+    favoriteIds: Set<Long>,
     currentMediaId: String?,
     onQueryChange: (String) -> Unit,
     onTrackClick: (List<Track>, Int) -> Unit,
+    onPlayNext: (Track) -> Unit,
+    onAddToQueue: (Track) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
     onAddToPlaylist: (Track) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -836,6 +931,7 @@ private fun LibraryContent(
                         TrackRow(
                             track = track,
                             isCurrent = currentMediaId == track.id.toString(),
+                            isFavorite = favoriteIds.contains(track.id),
                             onClick = {
                                 val fullIndex = state.allSorted.indexOfFirst { it.id == track.id }
                                 if (fullIndex >= 0) {
@@ -844,6 +940,9 @@ private fun LibraryContent(
                                     onTrackClick(state.visible, index)
                                 }
                             },
+                            onPlayNext = { onPlayNext(track) },
+                            onAddToQueue = { onAddToQueue(track) },
+                            onToggleFavorite = { onToggleFavorite(track.id) },
                             onAddToPlaylist = { onAddToPlaylist(track) },
                         )
                     }
@@ -868,6 +967,198 @@ private fun LibraryContent(
                         .align(Alignment.CenterEnd)
                         .padding(vertical = 4.dp, horizontal = 2.dp),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FavoritesTabContent(
+    tracks: List<Track>,
+    currentMediaId: String?,
+    onTrackClick: (List<Track>, Int) -> Unit,
+    onPlayNext: (Track) -> Unit,
+    onAddToQueue: (Track) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
+    onAddToPlaylist: (Track) -> Unit,
+    onExploreSongs: () -> Unit,
+) {
+    if (tracks.isEmpty()) {
+        CenteredMessage(
+            icon = Icons.Filled.FavoriteBorder,
+            title = "Belum ada lagu favorit",
+            body = "Ketuk ikon hati di Now Playing atau pilih Tambah ke Favorit dari menu lagu.",
+            actionLabel = "Lihat Lagu",
+            onAction = onExploreSongs,
+        )
+        return
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${tracks.size} lagu favorit",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.clickable { onTrackClick(tracks, 0) },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = "Putar",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.clickable { onTrackClick(tracks.shuffled(), 0) },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Shuffle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(14.dp),
+                        )
+                        Text(
+                            text = "Acak",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                    }
+                }
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
+            itemsIndexed(
+                items = tracks,
+                key = { _, t -> "fav_${t.id}" },
+            ) { index, track ->
+                TrackRow(
+                    track = track,
+                    isCurrent = currentMediaId == track.id.toString(),
+                    trackIndex = index + 1,
+                    isFavorite = true,
+                    onClick = { onTrackClick(tracks, index) },
+                    onPlayNext = { onPlayNext(track) },
+                    onAddToQueue = { onAddToQueue(track) },
+                    onToggleFavorite = { onToggleFavorite(track.id) },
+                    onAddToPlaylist = { onAddToPlaylist(track) },
+                )
+            }
+        }
+    }
+}
+
+private enum class HistoryMode { RECENT, MOST_PLAYED }
+
+@Composable
+private fun HistoryTabContent(
+    recentTracks: List<TrackPlayEntry>,
+    mostPlayedTracks: List<TrackPlayEntry>,
+    favoriteIds: Set<Long>,
+    currentMediaId: String?,
+    onTrackClick: (List<Track>, Int) -> Unit,
+    onPlayNext: (Track) -> Unit,
+    onAddToQueue: (Track) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
+    onAddToPlaylist: (Track) -> Unit,
+    onExploreSongs: () -> Unit,
+) {
+    var mode by rememberSaveable { mutableStateOf(HistoryMode.RECENT) }
+    val activeEntries = if (mode == HistoryMode.RECENT) recentTracks else mostPlayedTracks
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SingleChoiceSegmentedButtonRow {
+                SegmentedButton(
+                    selected = mode == HistoryMode.RECENT,
+                    onClick = { mode = HistoryMode.RECENT },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) {
+                    Text("Baru Diputar")
+                }
+                SegmentedButton(
+                    selected = mode == HistoryMode.MOST_PLAYED,
+                    onClick = { mode = HistoryMode.MOST_PLAYED },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) {
+                    Text("Sering Diputar")
+                }
+            }
+        }
+
+        if (activeEntries.isEmpty()) {
+            CenteredMessage(
+                icon = Icons.Filled.History,
+                title = "Belum ada riwayat pemutaran",
+                body = "Mulai putar lagu dari library untuk melacak lagu terakhir dan lagu yang paling sering diputar.",
+                actionLabel = "Lihat Lagu",
+                onAction = onExploreSongs,
+            )
+        } else {
+            val activeTracks = remember(activeEntries) { activeEntries.map { it.track } }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
+                itemsIndexed(
+                    items = activeEntries,
+                    key = { _, entry -> "${mode.name}_${entry.track.id}" },
+                ) { index, entry ->
+                    TrackRow(
+                        track = entry.track,
+                        isCurrent = currentMediaId == entry.track.id.toString(),
+                        trackIndex = index + 1,
+                        isFavorite = favoriteIds.contains(entry.track.id),
+                        subtitleSuffix = "${entry.playCount}x diputar",
+                        onClick = { onTrackClick(activeTracks, index) },
+                        onPlayNext = { onPlayNext(entry.track) },
+                        onAddToQueue = { onAddToQueue(entry.track) },
+                        onToggleFavorite = { onToggleFavorite(entry.track.id) },
+                        onAddToPlaylist = { onAddToPlaylist(entry.track) },
+                    )
+                }
             }
         }
     }
