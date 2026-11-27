@@ -1,9 +1,19 @@
 package com.noirmusic.ui.player
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -34,29 +45,24 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,11 +70,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import com.noirmusic.playback.SleepTimerState
 import com.noirmusic.ui.common.formatDuration
+import com.noirmusic.ui.sakuga.LocalSakugaFx
+import com.noirmusic.ui.sakuga.SakugaIconButton
+import com.noirmusic.ui.sakuga.SakugaIconVfx
+import com.noirmusic.ui.sakuga.SakugaSeekSlider
+import com.noirmusic.ui.sakuga.SakugaSegmentedSwitch
+import com.noirmusic.ui.sakuga.SakugaStageBackdrop
+import com.noirmusic.ui.sakuga.sakugaCelShadow
+import com.noirmusic.ui.sakuga.trackRootCenter
+import com.noirmusic.ui.theme.SakugaTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import java.util.Locale
-import kotlin.math.roundToLong
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NowPlayingScreen(
     playback: PlaybackUiState,
@@ -100,6 +115,8 @@ fun NowPlayingScreen(
     onClearUpcomingQueue: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val tokens = SakugaTheme.tokens
+    val fx = LocalSakugaFx.current
     val track = playback.nowPlaying
     val sleepTimerState by sleepTimerStateFlow.collectAsStateWithLifecycle()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
@@ -127,291 +144,317 @@ fun NowPlayingScreen(
         )
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .systemBarsPadding()
-            .padding(bottom = 16.dp),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        // 1. Top Navigation Bar (Studio Minimalist Header)
-        Box(
+        // Dynamic anime speed-lines + halftone comic backdrop (moves ONLY while playing)
+        SakugaStageBackdrop(isPlaying = playback.isPlaying)
+
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 8.dp),
+                .fillMaxSize()
+                .systemBarsPadding()
+                .padding(bottom = 16.dp),
         ) {
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.align(Alignment.CenterStart),
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Tutup pemutar musik",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(28.dp),
-                )
-            }
-
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = "MEMUTAR DARI LIBRARY",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = track?.album ?: "Noir Hi-Fi",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            Row(
-                modifier = Modifier.align(Alignment.CenterEnd),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (playback.queueSize > 0) {
-                    IconButton(onClick = { showQueueDialog = true }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = "Buka antrean",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-                if (onAddToPlaylist != null && track != null) {
-                    IconButton(onClick = onAddToPlaylist) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                            contentDescription = "Tambah ke playlist",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-            }
-        }
-
-        // 2. Cover / Lyrics Tactile Switch
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.widthIn(max = 220.dp)) {
-                SegmentedButton(
-                    selected = pane == NowPlayingPane.COVER,
-                    onClick = { onPaneChange(NowPlayingPane.COVER) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        activeContentColor = MaterialTheme.colorScheme.primary,
-                        inactiveContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                ) {
-                    Text("Cover", fontWeight = if (pane == NowPlayingPane.COVER) FontWeight.SemiBold else FontWeight.Normal)
-                }
-                SegmentedButton(
-                    selected = pane == NowPlayingPane.LYRICS,
-                    onClick = { onPaneChange(NowPlayingPane.LYRICS) },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        activeContentColor = MaterialTheme.colorScheme.primary,
-                        inactiveContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                ) {
-                    Text("Lirik", fontWeight = if (pane == NowPlayingPane.LYRICS) FontWeight.SemiBold else FontWeight.Normal)
-                }
-            }
-        }
-
-        // 3. Central Content Area (Artwork / Lyrics)
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-        ) {
-            if (pane == NowPlayingPane.COVER) {
-                CoverPane(
-                    artworkFlow = artworkFlow,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                LyricsPane(
-                    lyricsStateFlow = lyricsStateFlow,
-                    activeLineIndexFlow = activeLineIndexFlow,
-                    onSeekTo = onSeekTo,
-                    onRetry = onRetryLyrics,
-                )
-            }
-        }
-
-        // 4. Title & Artist Info + Favorite Toggle
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 24.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = track?.title ?: "Tidak ada lagu",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = track?.displayArtist ?: "",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (track != null) {
-                IconButton(onClick = onToggleFavorite) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Hapus dari favorit" else "Tambah ke favorit",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // 5. Studio Scrubber / Seek Section with Tabular Monospace Timestamps
-        SeekSection(
-            positionMsFlow = positionMsFlow,
-            durationMs = playback.durationMs,
-            onSeekTo = onSeekTo,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-        )
-
-        if (playback.errorMessage != null) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "File tidak dapat diputar · ${playback.errorMessage}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        // 6. Transport Controls (Studio Ergonomics)
-        ControlsRow(
-            playback = playback,
-            onTogglePlayPause = onTogglePlayPause,
-            onPrevious = onPrevious,
-            onNext = onNext,
-            onToggleShuffle = onToggleShuffle,
-            onCycleRepeat = onCycleRepeat,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // 7. Bottom Auxiliary Bar (Sleep Timer Badge & Telemetry)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Sleep Timer Pill
-            val isTimerActive = sleepTimerState is SleepTimerState.Active
-            val timerText = when (val s = sleepTimerState) {
-                is SleepTimerState.Active -> {
-                    if (s.isEndOfTrack) "Tidur: Akhir lagu"
-                    else {
-                        val m = s.remainingSec / 60
-                        val sec = s.remainingSec % 60
-                        String.format(Locale.getDefault(), "Tidur: %02d:%02d", m, sec)
-                    }
-                }
-                else -> "Timer Tidur"
-            }
-
+            // 1. Top Navigation Bar
             Row(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(
-                        if (isTimerActive) MaterialTheme.colorScheme.surfaceContainerHigh
-                        else MaterialTheme.colorScheme.surfaceContainerLow,
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (isTimerActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                        else MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(6.dp),
-                    )
-                    .clickable { showSleepTimerDialog = true }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Bedtime,
-                    contentDescription = "Timer tidur",
-                    tint = if (isTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(15.dp),
-                )
-                Text(
-                    text = timerText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isTimerActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = if (isTimerActive) FontWeight.SemiBold else FontWeight.Medium,
+                SakugaIconButton(
+                    onClick = onClose,
+                    vfx = SakugaIconVfx.SKIP_PREV,
+                    framed = true,
+                    contentDescription = "Tutup pemutar musik",
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = if (playback.isPlaying) "ON AIR · LIBRARY" else "SIAP DIPUTAR",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        fontStyle = FontStyle.Italic,
+                        color = tokens.accentText,
+                    )
+                    Text(
+                        text = track?.album ?: "Noir Music",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (playback.queueSize > 0) {
+                        SakugaIconButton(
+                            onClick = { showQueueDialog = true },
+                            vfx = SakugaIconVfx.SNAP,
+                            framed = true,
+                            contentDescription = "Buka antrean",
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                    if (onAddToPlaylist != null && track != null) {
+                        SakugaIconButton(
+                            onClick = onAddToPlaylist,
+                            vfx = SakugaIconVfx.SNAP,
+                            framed = true,
+                            contentDescription = "Tambah ke playlist",
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Cover / Lyrics Sakuga Smear Switch
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                SakugaSegmentedSwitch(
+                    options = listOf("Cover", "Lirik"),
+                    selectedIndex = pane.ordinal,
+                    onSelect = { idx ->
+                        onPaneChange(if (idx == 0) NowPlayingPane.COVER else NowPlayingPane.LYRICS)
+                    },
+                    modifier = Modifier.widthIn(min = 210.dp, max = 230.dp),
                 )
             }
 
-            // Queue count indicator / tactile chip
-            if (playback.queueSize > 0) {
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.clickable { showQueueDialog = true },
+            // 3. Central Stage (Hero Manga Cover / Animated Synced Lyrics)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 6.dp),
+            ) {
+                AnimatedContent(
+                    targetState = pane,
+                    transitionSpec = {
+                        val dir = if (targetState == NowPlayingPane.LYRICS) 1 else -1
+                        (slideInHorizontally(spring(dampingRatio = 0.72f, stiffness = 420f)) { it / 2 * dir } + fadeIn()) togetherWith
+                            (slideOutHorizontally { -it / 3 * dir } + fadeOut())
+                    },
+                    label = "paneSwitch",
+                ) { activePane ->
+                    if (activePane == NowPlayingPane.COVER) {
+                        CoverPane(
+                            artworkFlow = artworkFlow,
+                            isPlaying = playback.isPlaying,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        LyricsPane(
+                            lyricsStateFlow = lyricsStateFlow,
+                            activeLineIndexFlow = activeLineIndexFlow,
+                            onSeekTo = onSeekTo,
+                            onRetry = onRetryLyrics,
+                        )
+                    }
+                }
+            }
+
+            // 4. Title & Artist + Mega Sakuga Favorite Heart
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, end = 16.dp, top = 4.dp, bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track?.title ?: "Tidak ada lagu",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = track?.displayArtist ?: "",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (track != null) {
+                    SakugaIconButton(
+                        onClick = onToggleFavorite,
+                        vfx = if (isFavorite) SakugaIconVfx.FAVORITE_OFF else SakugaIconVfx.FAVORITE_ON,
+                        framed = true,
+                        frameColor = if (isFavorite) tokens.accent else MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentDescription = if (isFavorite) "Hapus dari favorit" else "Tambah ke favorit",
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (isFavorite) tokens.onAccent else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+
+            // 5. Sakuga Seek Slider (Teardrop stretching thumb + cumulus clouds + release slash)
+            SeekSection(
+                positionMsFlow = positionMsFlow,
+                durationMs = playback.durationMs,
+                onSeekTo = onSeekTo,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+            )
+
+            if (playback.errorMessage != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "File tidak dapat diputar · ${playback.errorMessage}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                )
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            // 6. Hero Sakuga Transport Controls
+            ControlsRow(
+                playback = playback,
+                onTogglePlayPause = onTogglePlayPause,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onToggleShuffle = onToggleShuffle,
+                onCycleRepeat = onCycleRepeat,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp),
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            // 7. Bottom Auxiliary Bar (Sleep Timer & Queue Chip)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val isTimerActive = sleepTimerState is SleepTimerState.Active
+                val timerText = when (val s = sleepTimerState) {
+                    is SleepTimerState.Active -> {
+                        if (s.isEndOfTrack) "Tidur: Akhir lagu"
+                        else {
+                            val m = s.remainingSec / 60
+                            val sec = s.remainingSec % 60
+                            String.format(Locale.getDefault(), "Tidur: %02d:%02d", m, sec)
+                        }
+                    }
+                    else -> "Timer Tidur"
+                }
+
+                var timerCenter by remember { mutableStateOf(Offset.Zero) }
+                Row(
+                    modifier = Modifier
+                        .heightIn(min = 44.dp)
+                        .trackRootCenter { timerCenter = it }
+                        .sakugaCelShadow(
+                            color = if (isTimerActive) tokens.accent else tokens.celShadow,
+                            cornerRadius = 10.dp,
+                            offsetX = 2.5.dp,
+                            offsetY = 3.dp,
+                        )
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isTimerActive) tokens.cyanFill else MaterialTheme.colorScheme.surfaceContainerLow)
+                        .border(2.dp, tokens.inkBorder, RoundedCornerShape(10.dp))
+                        .clickable {
+                            if (timerCenter != Offset.Zero) fx.emitSecondarySnap(timerCenter)
+                            showSleepTimerDialog = true
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    Icon(
+                        imageVector = Icons.Filled.Bedtime,
+                        contentDescription = "Timer tidur",
+                        tint = if (isTimerActive) tokens.onCyanFill else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = timerText,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        color = if (isTimerActive) tokens.onCyanFill else MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+
+                if (playback.queueSize > 0) {
+                    var queueCenter by remember { mutableStateOf(Offset.Zero) }
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                        modifier = Modifier
+                            .heightIn(min = 44.dp)
+                            .trackRootCenter { queueCenter = it }
+                            .sakugaCelShadow(tokens.celShadow, cornerRadius = 10.dp, offsetX = 2.5.dp, offsetY = 3.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .border(2.dp, tokens.inkBorder, RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (queueCenter != Offset.Zero) fx.emitSecondarySnap(queueCenter)
+                                showQueueDialog = true
+                            }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                             contentDescription = "Buka antrean",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(13.dp),
+                            tint = tokens.accentText,
+                            modifier = Modifier.size(16.dp),
                         )
                         Text(
                             text = "${playback.queueIndex + 1} / ${playback.queueSize}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -430,10 +473,10 @@ private fun SeekSection(
     val positionMs by positionMsFlow.collectAsStateWithLifecycle()
     val enabled = durationMs > 0L
     var isDragging by remember { mutableStateOf(false) }
-    var dragMs by remember { mutableFloatStateOf(0f) }
+    var dragMs by remember { mutableLongStateOf(0L) }
 
     val shownMs = if (isDragging) {
-        dragMs.roundToLong()
+        dragMs
     } else {
         positionMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
     }
@@ -442,41 +485,25 @@ private fun SeekSection(
     val remainingText = if (enabled) "-${formatDuration(remainingMs)}" else "--:--"
 
     Column(modifier = modifier) {
-        Slider(
-            value = if (enabled) shownMs.toFloat() else 0f,
-            onValueChange = {
-                isDragging = true
-                dragMs = it
+        SakugaSeekSlider(
+            valueMs = shownMs,
+            durationMs = durationMs,
+            onSeekCommit = onSeekTo,
+            onDragStateChange = { dragging, ms ->
+                isDragging = dragging
+                dragMs = ms
             },
-            onValueChangeFinished = {
-                val target = dragMs.roundToLong()
-                isDragging = false
-                onSeekTo(target)
-            },
-            valueRange = 0f..(durationMs.coerceAtLeast(1L).toFloat()),
-            enabled = enabled,
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics {
-                    contentDescription = "Seek"
-                    stateDescription = "$elapsedText dari $remainingText"
-                },
         )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 2.dp),
+                .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
                 text = elapsedText,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
                 text = remainingText,
@@ -497,125 +524,200 @@ private fun ControlsRow(
     onCycleRepeat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = SakugaTheme.tokens
+    val fx = LocalSakugaFx.current
+    val scope = rememberCoroutineScope()
     val repeatDescription = when (playback.repeatMode) {
         Player.REPEAT_MODE_ALL -> "Repeat all"
         Player.REPEAT_MODE_ONE -> "Repeat one"
         else -> "Repeat off"
     }
 
+    val playInteraction = remember { MutableInteractionSource() }
+    val playPressed by playInteraction.collectIsPressedAsState()
+    var playCenter by remember { mutableStateOf(Offset.Zero) }
+    var playFlashing by remember { mutableStateOf(false) }
+
+    val playScaleX by animateFloatAsState(
+        targetValue = if (playPressed) 1.16f else 1f,
+        animationSpec = spring(dampingRatio = 0.36f, stiffness = 540f),
+        label = "playSX",
+    )
+    val playScaleY by animateFloatAsState(
+        targetValue = if (playPressed) 0.82f else 1f,
+        animationSpec = spring(dampingRatio = 0.36f, stiffness = 540f),
+        label = "playSY",
+    )
+    val playShift by animateDpAsState(
+        targetValue = if (playPressed) 4.dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 600f),
+        label = "playShift",
+    )
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Shuffle with active dot indicator
+        // Shuffle toggle
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(48.dp),
+            modifier = Modifier.width(52.dp),
         ) {
-            IconButton(
-                onClick = onToggleShuffle,
-                modifier = Modifier.size(44.dp),
+            var shuffleCenter by remember { mutableStateOf(Offset.Zero) }
+            SakugaIconButton(
+                onClick = {
+                    if (shuffleCenter != Offset.Zero) {
+                        fx.emitToggleSplash(shuffleCenter, turnedOn = !playback.shuffleEnabled)
+                    }
+                    onToggleShuffle()
+                },
+                vfx = SakugaIconVfx.SNAP,
+                framed = true,
+                frameColor = if (playback.shuffleEnabled) tokens.cyanFill else MaterialTheme.colorScheme.surfaceContainerLow,
+                contentDescription = if (playback.shuffleEnabled) "Shuffle on" else "Shuffle off",
+                modifier = Modifier.trackRootCenter { shuffleCenter = it },
             ) {
                 Icon(
                     imageVector = Icons.Filled.Shuffle,
-                    contentDescription = if (playback.shuffleEnabled) "Shuffle on" else "Shuffle off",
-                    tint = if (playback.shuffleEnabled) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.size(22.dp),
+                    contentDescription = null,
+                    tint = if (playback.shuffleEnabled) tokens.onCyanFill else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp),
                 )
             }
+            Spacer(Modifier.height(2.dp))
             Box(
                 modifier = Modifier
-                    .size(4.dp)
+                    .size(6.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (playback.shuffleEnabled) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.background,
-                    ),
+                    .background(if (playback.shuffleEnabled) tokens.accent else Color.Transparent),
             )
         }
 
-        // Previous track
-        IconButton(
+        // Previous track with directional slash VFX
+        SakugaIconButton(
             onClick = onPrevious,
             enabled = playback.hasPrevious,
-            modifier = Modifier.size(48.dp),
+            vfx = SakugaIconVfx.SKIP_PREV,
+            framed = true,
+            frameColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentDescription = "Previous track",
+            modifier = Modifier.size(52.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.SkipPrevious,
-                contentDescription = "Previous track",
-                tint = if (playback.hasPrevious) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                contentDescription = null,
+                tint = if (playback.hasPrevious) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(26.dp),
             )
         }
 
-        // Tactile Studio Knob Play/Pause button
+        // Mega Hero Sakuga Play / Pause Trigger
+        val playBg = when {
+            playFlashing -> tokens.inkBorder
+            playback.isPlaying -> tokens.accent
+            else -> tokens.violetFill
+        }
+        val playFg = when {
+            playFlashing -> tokens.vfxFill
+            playback.isPlaying -> tokens.onAccent
+            else -> tokens.onVioletFill
+        }
+
         Box(
             modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = CircleShape,
+                .size(76.dp)
+                .trackRootCenter { playCenter = it }
+                .graphicsLayer {
+                    scaleX = playScaleX
+                    scaleY = playScaleY
+                    translationX = playShift.toPx()
+                    translationY = playShift.toPx()
+                }
+                .sakugaCelShadow(
+                    color = if (playback.isPlaying) tokens.cyanFill else tokens.celShadow,
+                    cornerRadius = 38.dp,
+                    offsetX = (4.dp - playShift).coerceAtLeast(0.dp),
+                    offsetY = (5.dp - playShift).coerceAtLeast(0.dp),
                 )
-                .clickable(enabled = playback.queueSize > 0, onClick = onTogglePlayPause),
+                .clip(CircleShape)
+                .background(playBg)
+                .border(3.dp, tokens.inkBorder, CircleShape)
+                .clickable(
+                    enabled = playback.queueSize > 0,
+                    interactionSource = playInteraction,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = {
+                        if (playCenter != Offset.Zero) {
+                            fx.emitPlayBlast(playCenter, isNowPlaying = !playback.isPlaying)
+                        }
+                        scope.launch {
+                            playFlashing = true
+                            delay(65L)
+                            playFlashing = false
+                        }
+                        onTogglePlayPause()
+                    },
+                ),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (playback.isPlaying) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = if (playback.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (playback.isPlaying) "Pause" else "Play",
-                    tint = if (playback.isPlaying) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(26.dp),
-                )
-            }
+            Icon(
+                imageVector = if (playback.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = if (playback.isPlaying) "Pause" else "Play",
+                tint = playFg,
+                modifier = Modifier.size(36.dp),
+            )
             if (playback.isBuffering) {
                 CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(58.dp),
+                    color = tokens.inkBorder,
+                    strokeWidth = 3.dp,
+                    modifier = Modifier.size(66.dp),
                 )
             }
         }
 
-        // Next track
-        IconButton(
+        // Next track with directional slash VFX
+        SakugaIconButton(
             onClick = onNext,
             enabled = playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF,
-            modifier = Modifier.size(48.dp),
+            vfx = SakugaIconVfx.SKIP_NEXT,
+            framed = true,
+            frameColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentDescription = "Next track",
+            modifier = Modifier.size(52.dp),
         ) {
             Icon(
                 imageVector = Icons.Filled.SkipNext,
-                contentDescription = "Next track",
-                tint = if (playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                contentDescription = null,
+                tint = if (playback.hasNext || playback.repeatMode != Player.REPEAT_MODE_OFF) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
                 modifier = Modifier.size(26.dp),
             )
         }
 
-        // Repeat with active dot indicator
+        // Repeat cycle toggle
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(48.dp),
+            modifier = Modifier.width(52.dp),
         ) {
-            IconButton(
-                onClick = onCycleRepeat,
-                modifier = Modifier.size(44.dp),
+            var repeatCenter by remember { mutableStateOf(Offset.Zero) }
+            val repeatActive = playback.repeatMode != Player.REPEAT_MODE_OFF
+            SakugaIconButton(
+                onClick = {
+                    if (repeatCenter != Offset.Zero) {
+                        fx.emitToggleSplash(repeatCenter, turnedOn = !repeatActive)
+                    }
+                    onCycleRepeat()
+                },
+                vfx = SakugaIconVfx.SNAP,
+                framed = true,
+                frameColor = if (repeatActive) tokens.cyanFill else MaterialTheme.colorScheme.surfaceContainerLow,
+                contentDescription = repeatDescription,
+                modifier = Modifier.trackRootCenter { repeatCenter = it },
             ) {
                 Icon(
                     imageVector = if (playback.repeatMode == Player.REPEAT_MODE_ONE) {
@@ -623,23 +725,17 @@ private fun ControlsRow(
                     } else {
                         Icons.Filled.Repeat
                     },
-                    contentDescription = repeatDescription,
-                    tint = if (playback.repeatMode != Player.REPEAT_MODE_OFF) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.size(22.dp),
+                    contentDescription = null,
+                    tint = if (repeatActive) tokens.onCyanFill else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp),
                 )
             }
+            Spacer(Modifier.height(2.dp))
             Box(
                 modifier = Modifier
-                    .size(4.dp)
+                    .size(6.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (playback.repeatMode != Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.background,
-                    ),
+                    .background(if (repeatActive) tokens.accent else Color.Transparent),
             )
         }
     }
@@ -648,10 +744,11 @@ private fun ControlsRow(
 @Composable
 private fun CoverPane(
     artworkFlow: StateFlow<androidx.compose.ui.graphics.ImageBitmap?>,
+    isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val artwork by artworkFlow.collectAsStateWithLifecycle()
-    Artwork(bitmap = artwork, modifier = modifier)
+    Artwork(bitmap = artwork, isPlaying = isPlaying, modifier = modifier)
 }
 
 @Composable

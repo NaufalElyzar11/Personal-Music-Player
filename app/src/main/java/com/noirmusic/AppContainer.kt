@@ -18,7 +18,9 @@ import com.noirmusic.data.media.TrackRepository
 import com.noirmusic.data.playlist.JsonPlaylistRepository
 import com.noirmusic.data.playlist.PlaylistRepository
 import com.noirmusic.data.preferences.DataStorePlaybackPreferencesStore
+import com.noirmusic.data.preferences.DataStoreThemePreferencesStore
 import com.noirmusic.data.preferences.PlaybackStateStore
+import com.noirmusic.data.preferences.ThemePreferencesStore
 import com.noirmusic.playback.PlaybackConnection
 import com.noirmusic.playback.SleepTimerManager
 import com.noirmusic.ui.library.LibraryViewModel
@@ -48,6 +50,10 @@ class AppContainer(context: Context) {
 
     val playbackStateStore: PlaybackStateStore by lazy {
         DataStorePlaybackPreferencesStore(appContext)
+    }
+
+    val themePreferencesStore: ThemePreferencesStore by lazy {
+        DataStoreThemePreferencesStore(appContext)
     }
 
     val playlistRepository: PlaylistRepository by lazy { JsonPlaylistRepository(appContext) }

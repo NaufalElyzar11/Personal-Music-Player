@@ -1,5 +1,7 @@
 package com.noirmusic.ui.library
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -17,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -25,22 +28,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.noirmusic.data.media.TrackListLogic
+import com.noirmusic.ui.sakuga.LocalSakugaFx
+import com.noirmusic.ui.sakuga.sakugaCelShadow
+import com.noirmusic.ui.theme.SakugaTheme
 import kotlin.math.roundToInt
 
 /**
- * Right-edge fast scroller rail displaying digits (0-9) and letters (A-Z).
- * Supports both single tap and vertical drag scrubbing to jump across large libraries.
+ * Right-edge Sakuga cel fast-scroller rail (0-9, A-Z) with a bouncy comic speech-bubble callout
+ * and subtle wedge/puff particles on symbol jumps.
  */
 @Composable
 fun AlphabetFastScroller(
@@ -49,60 +60,70 @@ fun AlphabetFastScroller(
     onSymbolSelected: (Char) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val tokens = SakugaTheme.tokens
+    val fx = LocalSakugaFx.current
     val symbols = TrackListLogic.FAST_SCROLL_SYMBOLS
     var railHeightPx by remember { mutableFloatStateOf(0f) }
+    var railOrigin by remember { mutableStateOf(Offset.Zero) }
     var activeDragSymbol by remember { mutableStateOf<Char?>(null) }
     var dragYOffsetPx by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
+    val popScale = remember { Animatable(1f) }
+
+    LaunchedEffect(activeDragSymbol) {
+        if (activeDragSymbol != null) {
+            popScale.snapTo(1.28f)
+            popScale.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = 520f))
+        }
+    }
 
     Box(
         modifier = modifier.fillMaxHeight(),
         contentAlignment = Alignment.CenterEnd,
     ) {
-        // Floating preview indicator shown to the left of the rail while dragging/tapping
         val previewChar = activeDragSymbol
         if (previewChar != null && railHeightPx > 0f) {
-            val badgeSizePx = with(density) { 48.dp.toPx() }
+            val badgeSizePx = with(density) { 56.dp.toPx() }
             val clampedY = (dragYOffsetPx - badgeSizePx / 2f)
                 .coerceIn(0f, (railHeightPx - badgeSizePx).coerceAtLeast(0f))
 
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(end = 36.dp)
+                    .padding(end = 38.dp)
                     .offset { IntOffset(0, clampedY.roundToInt()) }
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary,
-                        shape = RoundedCornerShape(10.dp),
-                    ),
+                    .size(56.dp)
+                    .graphicsLayer {
+                        scaleX = popScale.value
+                        scaleY = popScale.value
+                        rotationZ = -6f
+                    }
+                    .sakugaCelShadow(tokens.accent, cornerRadius = 14.dp, offsetX = 4.dp, offsetY = 5.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tokens.cyanFill)
+                    .border(2.5.dp, tokens.inkBorder, RoundedCornerShape(14.dp)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = previewChar.toString(),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Black,
+                    fontStyle = FontStyle.Italic,
+                    color = tokens.onCyanFill,
                 )
             }
         }
 
-        // Tactile index rail (0-9, A-Z)
         BoxWithConstraints(
             modifier = Modifier
-                .width(28.dp)
+                .width(30.dp)
                 .fillMaxHeight()
                 .padding(vertical = 4.dp, horizontal = 2.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .sakugaCelShadow(tokens.celShadow, cornerRadius = 10.dp, offsetX = 2.dp, offsetY = 3.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .border(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(8.dp),
-                )
+                .border(2.dp, tokens.inkBorder, RoundedCornerShape(10.dp))
+                .onGloballyPositioned { coords -> railOrigin = coords.positionInRoot() }
                 .onSizeChanged { railHeightPx = it.height.toFloat() }
                 .semantics {
                     contentDescription = "Indeks cepat 0 sampai 9 dan A sampai Z"
@@ -123,6 +144,14 @@ fun AlphabetFastScroller(
                             if (activeDragSymbol != chosen) {
                                 activeDragSymbol = chosen
                                 onSymbolSelected(chosen)
+                                fx.spawnTicks(
+                                    center = Offset(railOrigin.x - 10f, railOrigin.y + clamped),
+                                    count = 3,
+                                    radiusDp = 12f,
+                                    lenDp = 8f,
+                                    dirRad = 3.14f,
+                                    life = 0.26f,
+                                )
                             }
                         }
 
@@ -148,8 +177,6 @@ fun AlphabetFastScroller(
                 slotHeightDp >= 11.dp -> 8.5.sp
                 else -> 7.5.sp
             }
-            // Show all 36 symbols when height allows (>= 280.dp); on very compact heights (e.g. keyboard open),
-            // thin displayed labels while keeping touch resolution across all 36 symbols.
             val displayedSymbols = if (maxHeight >= 280.dp) {
                 symbols
             } else {
@@ -159,7 +186,7 @@ fun AlphabetFastScroller(
             Column(
                 modifier = Modifier
                     .fillMaxHeight()
-                    .padding(vertical = 2.dp),
+                    .padding(vertical = 3.dp),
                 verticalArrangement = Arrangement.SpaceEvenly,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -171,11 +198,11 @@ fun AlphabetFastScroller(
                         text = symbol.toString(),
                         fontSize = fontSize,
                         lineHeight = fontSize,
-                        fontWeight = if (isSelected) FontWeight.Bold else if (hasTracks) FontWeight.SemiBold else FontWeight.Normal,
+                        fontWeight = if (isSelected) FontWeight.Black else if (hasTracks) FontWeight.Bold else FontWeight.Medium,
                         color = when {
-                            isSelected -> MaterialTheme.colorScheme.primary
+                            isSelected -> tokens.accentText
                             hasTracks -> MaterialTheme.colorScheme.onSurface
-                            else -> MaterialTheme.colorScheme.outline
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
                         },
                         textAlign = TextAlign.Center,
                     )

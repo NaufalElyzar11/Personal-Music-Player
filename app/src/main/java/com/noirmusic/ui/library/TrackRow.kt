@@ -1,14 +1,13 @@
 package com.noirmusic.ui.library
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,9 +34,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,60 +45,36 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.noirmusic.data.model.Track
 import com.noirmusic.ui.common.formatDuration
 import com.noirmusic.ui.common.spokenDuration
+import com.noirmusic.ui.sakuga.LocalSakugaFx
+import com.noirmusic.ui.sakuga.SakugaEqualizer
+import com.noirmusic.ui.sakuga.SakugaIconButton
+import com.noirmusic.ui.sakuga.SakugaIconVfx
+import com.noirmusic.ui.sakuga.sakugaCelShadow
+import com.noirmusic.ui.sakuga.sakugaTrackTint
+import com.noirmusic.ui.sakuga.trackRootCenter
+import com.noirmusic.ui.theme.SakugaTheme
 
 @Composable
 fun EqualizerGlyph(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.primary,
+    isPlaying: Boolean = true,
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "eq")
-    val h1 by infiniteTransition.animateFloat(
-        initialValue = 4f,
-        targetValue = 14f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(700, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "h1",
-    )
-    val h2 by infiniteTransition.animateFloat(
-        initialValue = 16f,
-        targetValue = 6f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "h2",
-    )
-    val h3 by infiniteTransition.animateFloat(
-        initialValue = 8f,
-        targetValue = 18f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "h3",
-    )
-
-    Row(
-        modifier = modifier.size(18.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        Box(Modifier.width(3.dp).height(h1.dp).clip(RoundedCornerShape(topStart = 1.dp, topEnd = 1.dp)).background(color))
-        Box(Modifier.width(3.dp).height(h2.dp).clip(RoundedCornerShape(topStart = 1.dp, topEnd = 1.dp)).background(color))
-        Box(Modifier.width(3.dp).height(h3.dp).clip(RoundedCornerShape(topStart = 1.dp, topEnd = 1.dp)).background(color))
-    }
+    // Kept for backwards compatibility; renders the colorful Sakuga cel spectrum.
+    SakugaEqualizer(isPlaying = isPlaying, modifier = modifier)
 }
 
 @Composable
@@ -110,6 +83,7 @@ fun TrackRow(
     isCurrent: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isPlaying: Boolean = true,
     trackIndex: Int? = null,
     isFavorite: Boolean = false,
     subtitleSuffix: String? = null,
@@ -123,82 +97,142 @@ fun TrackRow(
     dragHandleModifier: Modifier? = null,
     isDragging: Boolean = false,
 ) {
+    val tokens = SakugaTheme.tokens
+    val fx = LocalSakugaFx.current
     val durationText = if (track.durationMs > 0) formatDuration(track.durationMs) else "--:--"
     val a11yLabel = "${track.title}, ${track.displayArtist}, ${spokenDuration(track.durationMs)}" +
         if (isCurrent) ", now playing" else ""
     var menuExpanded by remember { mutableStateOf(false) }
+    var rowCenter by remember { mutableStateOf(Offset.Zero) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
 
-    val rowBackground = if (isDragging) {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    } else {
-        Color.Transparent
+    val (badgeBg, badgeFg) = sakugaTrackTint(track.id)
+
+    val scaleX by animateFloatAsState(
+        targetValue = if (isPressed) 1.03f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = 540f),
+        label = "rowScaleX",
+    )
+    val scaleY by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(dampingRatio = 0.45f, stiffness = 540f),
+        label = "rowScaleY",
+    )
+    val shadowOff by animateDpAsState(
+        targetValue = when {
+            isDragging -> 7.dp
+            isPressed -> 1.dp
+            isCurrent -> 4.dp
+            else -> 2.dp
+        },
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 520f),
+        label = "rowShadow",
+    )
+
+    val cardShape = RoundedCornerShape(12.dp)
+    val cardBg = when {
+        isDragging -> MaterialTheme.colorScheme.surfaceContainerHigh
+        isCurrent -> MaterialTheme.colorScheme.surfaceContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
-    val rowModifier = if (isDragging) {
-        modifier
-            .fillMaxWidth()
-            .background(rowBackground)
-            .border(1.dp, MaterialTheme.colorScheme.primary)
-    } else {
-        modifier
-            .fillMaxWidth()
-            .background(rowBackground)
+    val borderColor = when {
+        isDragging || isCurrent -> tokens.inkBorder
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+    val borderWidth = if (isCurrent || isDragging) 2.5.dp else 1.5.dp
+    val shadowColor = when {
+        isDragging -> tokens.accent
+        isCurrent -> tokens.accent.copy(alpha = 0.78f)
+        else -> tokens.celShadow.copy(alpha = 0.6f)
     }
 
-    Column(modifier = rowModifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .trackRootCenter { rowCenter = it }
+            .graphicsLayer {
+                this.scaleX = scaleX
+                this.scaleY = scaleY
+                rotationZ = if (isDragging) -1.2f else 0f
+            }
+            .sakugaCelShadow(
+                color = shadowColor,
+                cornerRadius = 12.dp,
+                offsetX = shadowOff,
+                offsetY = shadowOff + 1.dp,
+            )
+            .clip(cardShape)
+            .background(cardBg, cardShape)
+            .border(borderWidth, borderColor, cardShape),
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 58.dp)
+                .heightIn(min = 64.dp)
                 .semantics(mergeDescendants = true) { contentDescription = a11yLabel }
-                .clickable(role = Role.Button, onClick = onClick)
-                .padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = {
+                        if (rowCenter != Offset.Zero) {
+                            fx.emitPrimaryConfirm(rowCenter, halfWDp = 76f, halfHDp = 20f, sfx = "ドン!")
+                        }
+                        onClick()
+                    },
+                )
+                .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Index or Live EQ Indicator
-            Box(
-                modifier = Modifier
-                    .width(28.dp)
-                    .height(28.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (isCurrent) {
-                    EqualizerGlyph(color = MaterialTheme.colorScheme.primary)
-                } else if (trackIndex != null) {
-                    Text(
-                        text = String.format("%02d", trackIndex),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp),
-                    )
+            // Live anime equalizer or crisp cel track number badge
+            if (isCurrent || trackIndex != null) {
+                Box(
+                    modifier = Modifier
+                        .width(28.dp)
+                        .height(28.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isCurrent) {
+                        SakugaEqualizer(isPlaying = isPlaying)
+                    } else if (trackIndex != null) {
+                        Text(
+                            text = String.format("%02d", trackIndex),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Black,
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
+                Spacer(Modifier.width(6.dp))
             }
 
-            Spacer(Modifier.width(10.dp))
-
-            // Thumbnail
+            // Colorful cel-framed track emblem
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .size(44.dp)
+                    .sakugaCelShadow(
+                        color = tokens.celShadow.copy(alpha = 0.7f),
+                        cornerRadius = 10.dp,
+                        offsetX = 2.dp,
+                        offsetY = 2.dp,
+                    )
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isCurrent) tokens.accent else badgeBg)
                     .border(
-                        width = 1.dp,
-                        color = if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant,
-                        shape = RoundedCornerShape(6.dp),
+                        width = 2.dp,
+                        color = tokens.inkBorder,
+                        shape = RoundedCornerShape(10.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = Icons.Filled.MusicNote,
                     contentDescription = null,
-                    tint = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+                    tint = if (isCurrent) tokens.onAccent else badgeFg,
+                    modifier = Modifier.size(22.dp),
                 )
             }
 
@@ -209,49 +243,62 @@ fun TrackRow(
                 Text(
                     text = track.title,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (isCurrent) FontWeight.Black else FontWeight.Bold,
+                    fontStyle = if (isCurrent) FontStyle.Italic else FontStyle.Normal,
+                    color = if (isCurrent) tokens.accentText else MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val subtitle = if (subtitleSuffix.isNullOrBlank()) {
-                        track.displayArtist
-                    } else {
-                        "${track.displayArtist} · $subtitleSuffix"
-                    }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
+                val subtitle = if (subtitleSuffix.isNullOrBlank()) {
+                    track.displayArtist
+                } else {
+                    "${track.displayArtist} · $subtitleSuffix"
                 }
-            }
-
-            if (isFavorite) {
-                Spacer(Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.Filled.Favorite,
-                    contentDescription = "Lagu favorit",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp),
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
-            Spacer(Modifier.width(8.dp))
+            if (isFavorite) {
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = "Lagu favorit",
+                    tint = tokens.accentText,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
 
-            // Duration in tabular monospace
-            Text(
-                text = durationText,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Spacer(Modifier.width(6.dp))
 
-            // Options action
+            // Tabular duration stamp
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        if (isCurrent) tokens.cyanFill
+                        else MaterialTheme.colorScheme.surfaceContainer,
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isCurrent) tokens.inkBorder else MaterialTheme.colorScheme.outlineVariant,
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    text = durationText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isCurrent) tokens.onCyanFill else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             val hasMenuActions = onPlayNext != null ||
                 onAddToQueue != null ||
                 onToggleFavorite != null ||
@@ -260,25 +307,31 @@ fun TrackRow(
 
             if (hasMenuActions) {
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
+                    SakugaIconButton(
+                        onClick = { menuExpanded = true },
+                        vfx = SakugaIconVfx.SNAP,
+                        contentDescription = "Opsi lagu ${track.title}",
+                    ) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "Opsi lagu ${track.title}",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(20.dp),
                         )
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
                         if (onPlayNext != null) {
                             DropdownMenuItem(
-                                text = { Text("Putar Berikutnya") },
+                                text = { Text("Putar Berikutnya", fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                                         contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
                                     )
                                 },
                                 onClick = {
@@ -289,11 +342,12 @@ fun TrackRow(
                         }
                         if (onAddToQueue != null) {
                             DropdownMenuItem(
-                                text = { Text("Tambahkan ke Antrean") },
+                                text = { Text("Tambahkan ke Antrean", fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.QueueMusic,
                                         contentDescription = null,
+                                        tint = tokens.cyan,
                                     )
                                 },
                                 onClick = {
@@ -304,27 +358,36 @@ fun TrackRow(
                         }
                         if (onToggleFavorite != null) {
                             DropdownMenuItem(
-                                text = { Text(if (isFavorite) "Hapus dari Favorit" else "Tambah ke Favorit") },
+                                text = {
+                                    Text(
+                                        if (isFavorite) "Hapus dari Favorit" else "Tambah ke Favorit",
+                                        fontWeight = FontWeight.Bold,
+                                    )
+                                },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                         contentDescription = null,
-                                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        tint = tokens.accentText,
                                     )
                                 },
                                 onClick = {
                                     menuExpanded = false
+                                    if (rowCenter != Offset.Zero) {
+                                        fx.emitFavoriteBurst(rowCenter, nowFavorite = !isFavorite)
+                                    }
                                     onToggleFavorite()
                                 },
                             )
                         }
                         if (onAddToPlaylist != null) {
                             DropdownMenuItem(
-                                text = { Text("Tambah ke Playlist") },
+                                text = { Text("Tambah ke Playlist", fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
                                         contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
                                     )
                                 },
                                 onClick = {
@@ -335,13 +398,8 @@ fun TrackRow(
                         }
                         if (onMoveUp != null) {
                             DropdownMenuItem(
-                                text = { Text("Geser ke Atas") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowUpward,
-                                        contentDescription = null,
-                                    )
-                                },
+                                text = { Text("Geser ke Atas", fontWeight = FontWeight.Bold) },
+                                leadingIcon = { Icon(Icons.Filled.ArrowUpward, contentDescription = null) },
                                 onClick = {
                                     menuExpanded = false
                                     onMoveUp()
@@ -350,13 +408,8 @@ fun TrackRow(
                         }
                         if (onMoveDown != null) {
                             DropdownMenuItem(
-                                text = { Text("Geser ke Bawah") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowDownward,
-                                        contentDescription = null,
-                                    )
-                                },
+                                text = { Text("Geser ke Bawah", fontWeight = FontWeight.Bold) },
+                                leadingIcon = { Icon(Icons.Filled.ArrowDownward, contentDescription = null) },
                                 onClick = {
                                     menuExpanded = false
                                     onMoveDown()
@@ -365,7 +418,7 @@ fun TrackRow(
                         }
                         if (onRemoveFromPlaylist != null) {
                             DropdownMenuItem(
-                                text = { Text("Hapus dari Playlist") },
+                                text = { Text("Hapus dari Playlist", fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Filled.Delete,
@@ -382,20 +435,28 @@ fun TrackRow(
                     }
                 }
             } else if (onRemoveFromPlaylist != null) {
-                IconButton(onClick = onRemoveFromPlaylist) {
+                SakugaIconButton(
+                    onClick = onRemoveFromPlaylist,
+                    vfx = SakugaIconVfx.SNAP,
+                    contentDescription = "Hapus dari playlist",
+                ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
-                        contentDescription = "Hapus dari playlist",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             } else if (onAddToPlaylist != null) {
-                IconButton(onClick = onAddToPlaylist) {
+                SakugaIconButton(
+                    onClick = onAddToPlaylist,
+                    vfx = SakugaIconVfx.SNAP,
+                    contentDescription = "Tambah ke playlist",
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.PlaylistAdd,
-                        contentDescription = "Tambah ke playlist",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -404,24 +465,18 @@ fun TrackRow(
             if (dragHandleModifier != null) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .then(dragHandleModifier),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = Icons.Filled.DragHandle,
                         contentDescription = "Geser untuk mengurutkan",
-                        tint = if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        tint = if (isDragging) tokens.accentText else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
         }
-
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-            thickness = 0.5.dp,
-            modifier = Modifier.padding(start = 54.dp),
-        )
     }
 }

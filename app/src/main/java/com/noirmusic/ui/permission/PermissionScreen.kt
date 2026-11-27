@@ -11,6 +11,8 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -27,6 +29,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.noirmusic.ui.common.CenteredMessage
+import com.noirmusic.ui.sakuga.SakugaStageBackdrop
 
 @Composable
 fun PermissionGate(onGranted: @Composable () -> Unit) {
@@ -58,23 +61,28 @@ fun PermissionGate(onGranted: @Composable () -> Unit) {
         onGranted()
     } else {
         val permanent = status == PermissionStatus.PERMANENTLY_DENIED
-        CenteredMessage(
-            icon = Icons.Filled.LibraryMusic,
-            title = "Let Noir Music see your music",
-            body = "Noir Music needs access to audio files on this phone to play them. " +
-                "Only song title, artist and duration are sent to LRCLIB to find lyrics.",
-            actionLabel = if (permanent) "Open settings" else "Allow access",
-            onAction = {
-                if (permanent) {
-                    context.openAppSettings()
-                } else {
-                    launcher.launch(permission)
-                }
-            },
+        Box(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.background)
-                .systemBarsPadding(),
-        )
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            SakugaStageBackdrop(isPlaying = false)
+            CenteredMessage(
+                icon = Icons.Filled.LibraryMusic,
+                title = "Izinkan Noir Music membaca musik Anda",
+                body = "Noir Music memerlukan akses ke file audio di ponsel ini untuk memutarnya. " +
+                    "Hanya judul lagu, artis, dan durasi yang dikirim ke LRCLIB untuk mencari lirik.",
+                actionLabel = if (permanent) "Buka Pengaturan" else "Izinkan Akses",
+                onAction = {
+                    if (permanent) {
+                        context.openAppSettings()
+                    } else {
+                        launcher.launch(permission)
+                    }
+                },
+                modifier = Modifier.systemBarsPadding(),
+            )
+        }
     }
 }
 

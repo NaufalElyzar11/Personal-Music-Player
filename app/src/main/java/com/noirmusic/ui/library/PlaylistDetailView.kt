@@ -1,9 +1,8 @@
 package com.noirmusic.ui.library
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,25 +27,17 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -61,10 +52,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import com.noirmusic.data.model.Track
 import com.noirmusic.data.playlist.Playlist
@@ -73,6 +68,16 @@ import com.noirmusic.ui.common.CenteredMessage
 import com.noirmusic.ui.common.dragHandle
 import com.noirmusic.ui.common.formatDuration
 import com.noirmusic.ui.common.rememberDragReorderState
+import com.noirmusic.ui.sakuga.SakugaButton
+import com.noirmusic.ui.sakuga.SakugaButtonStyle
+import com.noirmusic.ui.sakuga.SakugaDialog
+import com.noirmusic.ui.sakuga.SakugaIconButton
+import com.noirmusic.ui.sakuga.SakugaIconVfx
+import com.noirmusic.ui.sakuga.SakugaPanel
+import com.noirmusic.ui.sakuga.SakugaSnackbarHost
+import com.noirmusic.ui.sakuga.sakugaCelShadow
+import com.noirmusic.ui.sakuga.sakugaTrackTint
+import com.noirmusic.ui.theme.SakugaTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,6 +87,7 @@ fun PlaylistDetailView(
     tracks: List<Track>,
     favoriteIds: Set<Long>,
     currentMediaId: String?,
+    isPlaying: Boolean = true,
     onBack: () -> Unit,
     onPlayTrack: (List<Track>, Int) -> Unit,
     onPlayNext: (Track) -> Unit,
@@ -94,12 +100,14 @@ fun PlaylistDetailView(
     bottomBar: @Composable () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val tokens = SakugaTheme.tokens
     var menuOpen by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var renameText by remember { mutableStateOf(playlist.name) }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val (heroBg, heroFg) = sakugaTrackTint(playlist.id.hashCode().toLong())
 
     val displayTracks = remember { mutableStateListOf<Track>() }
     val listState = rememberLazyListState()
@@ -126,65 +134,92 @@ fun PlaylistDetailView(
     val durationText = if (totalDurationMs > 0) formatDuration(totalDurationMs) else "00:00"
 
     if (showRenameDialog) {
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("Ganti Nama Playlist") },
-            text = {
-                OutlinedTextField(
-                    value = renameText,
-                    onValueChange = { renameText = it },
-                    label = { Text("Nama Baru") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val trimmed = renameText.trim()
-                        if (trimmed.isNotBlank()) {
-                            onRenamePlaylist(trimmed)
-                            showRenameDialog = false
+        SakugaDialog(onDismissRequest = { showRenameDialog = false }, horizontalPadding = 20.dp) {
+            SakugaPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shadowColor = tokens.cyanFill,
+                cornerRadius = 16.dp,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Ganti Nama Playlist", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = renameText,
+                        onValueChange = { renameText = it },
+                        label = { Text("Nama Baru") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        SakugaButton(
+                            onClick = { showRenameDialog = false },
+                            style = SakugaButtonStyle.SECONDARY,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Batal", fontWeight = FontWeight.Bold)
                         }
-                    },
-                    enabled = renameText.isNotBlank(),
-                ) {
-                    Text("Simpan")
+                        SakugaButton(
+                            onClick = {
+                                val trimmed = renameText.trim()
+                                if (trimmed.isNotBlank()) {
+                                    onRenamePlaylist(trimmed)
+                                    showRenameDialog = false
+                                }
+                            },
+                            enabled = renameText.isNotBlank(),
+                            style = SakugaButtonStyle.ACCENT,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Simpan", fontWeight = FontWeight.Black)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRenameDialog = false }) {
-                    Text("Batal")
-                }
-            },
-        )
+            }
+        }
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Hapus Playlist?") },
-            text = { Text("Playlist “${playlist.name}” akan dihapus. File lagu asli tidak akan terhapus.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDeletePlaylist()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                    ),
-                ) {
-                    Text("Hapus")
+        SakugaDialog(onDismissRequest = { showDeleteConfirm = false }, horizontalPadding = 20.dp) {
+            SakugaPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shadowColor = MaterialTheme.colorScheme.error,
+                cornerRadius = 16.dp,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Hapus Playlist?", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Playlist \"${playlist.name}\" akan dihapus. File lagu asli tidak akan terhapus.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        SakugaButton(
+                            onClick = { showDeleteConfirm = false },
+                            style = SakugaButtonStyle.SECONDARY,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Batal", fontWeight = FontWeight.Bold)
+                        }
+                        SakugaButton(
+                            onClick = {
+                                showDeleteConfirm = false
+                                onDeletePlaylist()
+                            },
+                            style = SakugaButtonStyle.DANGER,
+                            sfxText = "ズザッ",
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Hapus", fontWeight = FontWeight.Black)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Batal")
-                }
-            },
-        )
+            }
+        }
     }
 
     Scaffold(
@@ -192,23 +227,51 @@ fun PlaylistDetailView(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(playlist.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    Text(
+                        text = playlist.name,
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali")
+                    SakugaIconButton(
+                        onClick = onBack,
+                        vfx = SakugaIconVfx.SKIP_PREV,
+                        framed = true,
+                        contentDescription = "Kembali",
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp),
+                        )
                     }
                 },
                 actions = {
                     Box {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(Icons.Filled.MoreVert, contentDescription = "Menu playlist")
+                        SakugaIconButton(
+                            onClick = { menuOpen = true },
+                            vfx = SakugaIconVfx.SNAP,
+                            framed = true,
+                            contentDescription = "Menu playlist",
+                        ) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
                         DropdownMenu(
                             expanded = menuOpen,
                             onDismissRequest = { menuOpen = false },
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Ganti Nama") },
+                                text = { Text("Ganti Nama", fontWeight = FontWeight.Bold) },
                                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                                 onClick = {
                                     menuOpen = false
@@ -217,7 +280,7 @@ fun PlaylistDetailView(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Hapus Playlist") },
+                                text = { Text("Hapus Playlist", fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Filled.Delete,
@@ -240,159 +303,140 @@ fun PlaylistDetailView(
             )
         },
         bottomBar = bottomBar,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SakugaSnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            // Bento Header (Stitch Screen 6: Playlist Detail)
-            Column(
+            // Manga Hero Panel for Playlist Detail
+            SakugaPanel(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                shadowColor = tokens.celShadow,
+                cornerRadius = 16.dp,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Cover artwork box with tactile border
-                    Box(
-                        modifier = Modifier
-                            .size(88.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .border(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(10.dp),
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(44.dp),
-                        )
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    // Comic halftone corner accent inside hero panel
+                    Canvas(modifier = Modifier.matchParentSize()) {
+                        val step = 12.dp.toPx()
+                        var y = step
+                        while (y < size.height) {
+                            var x = size.width * 0.58f
+                            while (x < size.width) {
+                                val alpha = ((x - size.width * 0.58f) / (size.width * 0.42f)).coerceIn(0f, 1f)
+                                drawCircle(
+                                    color = tokens.halftoneDot,
+                                    radius = 2.2.dp.toPx() * alpha,
+                                    center = Offset(x, y),
+                                )
+                                x += step
+                            }
+                            y += step
+                        }
                     }
 
-                    // Metadata details
                     Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
                     ) {
-                        Text(
-                            text = "PLAYLIST LOKAL",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = playlist.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "${tracks.size} lagu · $durationText",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
-                if (tracks.isNotEmpty()) {
-                    Spacer(Modifier.height(14.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        // Play All Button (tactile studio button)
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clickable { onPlayTrack(displayTracks.toList(), 0) },
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
+                            Box(
+                                modifier = Modifier
+                                    .size(84.dp)
+                                    .graphicsLayer { rotationZ = -3.5f }
+                                    .sakugaCelShadow(tokens.accent, cornerRadius = 14.dp, offsetX = 4.dp, offsetY = 5.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(heroBg)
+                                    .border(2.5.dp, tokens.inkBorder, RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.PlayArrow,
+                                    imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
+                                    tint = heroFg,
+                                    modifier = Modifier.size(44.dp),
                                 )
-                                Spacer(Modifier.width(6.dp))
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(tokens.cyanFill)
+                                        .border(1.5.dp, tokens.inkBorder, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = "PLAYLIST LOKAL",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Black,
+                                        color = tokens.onCyanFill,
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
                                 Text(
-                                    text = "Putar Semua",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.headlineSmall,
                                     color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = "${tracks.size} lagu · $durationText",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                         }
 
-                        // Shuffle Button (tactile with lime border)
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primaryContainer),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .clickable {
-                                    val shuffled = displayTracks.shuffled()
-                                    onPlayTrack(shuffled, 0)
-                                },
-                        ) {
+                        if (tracks.isNotEmpty()) {
+                            Spacer(Modifier.height(14.dp))
                             Row(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Shuffle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = "Acak",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
+                                SakugaButton(
+                                    onClick = { onPlayTrack(displayTracks.toList(), 0) },
+                                    style = SakugaButtonStyle.PRIMARY,
+                                    sfxText = "ドン!",
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Putar Semua", fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                                }
+                                SakugaButton(
+                                    onClick = { onPlayTrack(displayTracks.shuffled(), 0) },
+                                    style = SakugaButtonStyle.ACCENT,
+                                    sfxText = "シュッ!",
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Acak", fontWeight = FontWeight.Black, fontStyle = FontStyle.Italic)
+                                }
                             }
                         }
                     }
                 }
             }
 
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                thickness = 0.5.dp,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-            )
-
             if (displayTracks.isEmpty()) {
                 CenteredMessage(
                     icon = Icons.AutoMirrored.Filled.PlaylistPlay,
                     title = "Playlist ini masih kosong",
-                    body = "Buka tab Semua Lagu, lalu ketuk menu opsi pada lagu yang ingin dimasukkan.",
+                    body = "Buka tab Lagu, lalu ketuk menu opsi pada lagu yang ingin dimasukkan.",
                     actionLabel = "Lihat Lagu",
                     onAction = onBack,
                 )
@@ -400,7 +444,7 @@ fun PlaylistDetailView(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 16.dp),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 18.dp),
                 ) {
                     itemsIndexed(
                         items = displayTracks,
@@ -435,7 +479,10 @@ fun PlaylistDetailView(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .background(MaterialTheme.colorScheme.errorContainer)
+                                        .border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(12.dp))
                                         .padding(horizontal = 20.dp),
                                     contentAlignment = Alignment.CenterEnd,
                                 ) {
@@ -450,6 +497,7 @@ fun PlaylistDetailView(
                             TrackRow(
                                 track = track,
                                 isCurrent = currentMediaId == track.id.toString(),
+                                isPlaying = isPlaying,
                                 trackIndex = index + 1,
                                 isFavorite = favoriteIds.contains(track.id),
                                 onClick = { onPlayTrack(displayTracks.toList(), index) },

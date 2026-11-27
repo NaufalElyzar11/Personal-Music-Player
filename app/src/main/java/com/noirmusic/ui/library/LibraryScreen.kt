@@ -1,6 +1,5 @@
 package com.noirmusic.ui.library
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,57 +20,37 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -84,11 +63,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.noirmusic.data.media.SortOrder
 import com.noirmusic.data.media.TrackListLogic
 import com.noirmusic.data.model.Track
@@ -97,6 +80,23 @@ import com.noirmusic.ui.common.CenteredMessage
 import com.noirmusic.ui.common.LoadingView
 import com.noirmusic.ui.player.MiniPlayer
 import com.noirmusic.ui.player.PlaybackUiState
+import com.noirmusic.ui.sakuga.LocalSakugaFx
+import com.noirmusic.ui.sakuga.SakugaButton
+import com.noirmusic.ui.sakuga.SakugaButtonStyle
+import com.noirmusic.ui.sakuga.SakugaDialog
+import com.noirmusic.ui.sakuga.SakugaEqualizer
+import com.noirmusic.ui.sakuga.SakugaIconButton
+import com.noirmusic.ui.sakuga.SakugaIconVfx
+import com.noirmusic.ui.sakuga.SakugaPanel
+import com.noirmusic.ui.sakuga.SakugaSearchField
+import com.noirmusic.ui.sakuga.SakugaSegmentedSwitch
+import com.noirmusic.ui.sakuga.SakugaSnackbarHost
+import com.noirmusic.ui.sakuga.SakugaTabRow
+import com.noirmusic.ui.sakuga.sakugaCelShadow
+import com.noirmusic.ui.sakuga.sakugaTrackTint
+import com.noirmusic.ui.sakuga.trackRootCenter
+import com.noirmusic.ui.theme.SakugaTheme
+import com.noirmusic.ui.theme.SakugaThemeMode
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
@@ -116,6 +116,8 @@ fun LibraryScreen(
     recentTracks: List<TrackPlayEntry>,
     mostPlayedTracks: List<TrackPlayEntry>,
     selectedPlaylistWithTracks: Pair<Playlist, List<Track>>?,
+    themeMode: SakugaThemeMode,
+    onToggleTheme: () -> Unit,
     onQueryChange: (String) -> Unit,
     onSortChange: (SortOrder) -> Unit,
     onRefresh: () -> Unit,
@@ -134,6 +136,8 @@ fun LibraryScreen(
     onRemoveFromPlaylist: (playlistId: String, trackId: Long) -> Unit,
     onReorderPlaylistTracks: (playlistId: String, newTrackIds: List<Long>) -> Unit,
 ) {
+    val tokens = SakugaTheme.tokens
+
     val miniPlayerBar: @Composable () -> Unit = {
         if (playback.nowPlaying != null) {
             MiniPlayer(
@@ -153,6 +157,7 @@ fun LibraryScreen(
             tracks = tracks,
             favoriteIds = favoriteIds,
             currentMediaId = playback.nowPlaying?.mediaId,
+            isPlaying = playback.isPlaying,
             onBack = { onSelectPlaylist(null) },
             onPlayTrack = onTrackClick,
             onPlayNext = onPlayNext,
@@ -176,39 +181,52 @@ fun LibraryScreen(
     val snackbarScope = rememberCoroutineScope()
 
     if (showCreatePlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = { showCreatePlaylistDialog = false },
-            title = { Text("Playlist Baru") },
-            text = {
-                OutlinedTextField(
-                    value = newPlaylistNameText,
-                    onValueChange = { newPlaylistNameText = it },
-                    label = { Text("Nama Playlist") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val trimmed = newPlaylistNameText.trim()
-                        if (trimmed.isNotBlank()) {
-                            onCreatePlaylist(trimmed, null)
-                            newPlaylistNameText = ""
-                            showCreatePlaylistDialog = false
+        SakugaDialog(onDismissRequest = { showCreatePlaylistDialog = false }, horizontalPadding = 20.dp) {
+            SakugaPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shadowColor = tokens.accent,
+                cornerRadius = 16.dp,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Playlist Baru", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = newPlaylistNameText,
+                        onValueChange = { newPlaylistNameText = it },
+                        label = { Text("Nama Playlist") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        SakugaButton(
+                            onClick = { showCreatePlaylistDialog = false },
+                            style = SakugaButtonStyle.SECONDARY,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Batal", fontWeight = FontWeight.Bold)
                         }
-                    },
-                    enabled = newPlaylistNameText.isNotBlank(),
-                ) {
-                    Text("Buat")
+                        SakugaButton(
+                            onClick = {
+                                val trimmed = newPlaylistNameText.trim()
+                                if (trimmed.isNotBlank()) {
+                                    onCreatePlaylist(trimmed, null)
+                                    newPlaylistNameText = ""
+                                    showCreatePlaylistDialog = false
+                                }
+                            },
+                            enabled = newPlaylistNameText.isNotBlank(),
+                            style = SakugaButtonStyle.ACCENT,
+                            sfxText = "ドン!",
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Buat", fontWeight = FontWeight.Black)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreatePlaylistDialog = false }) {
-                    Text("Batal")
-                }
-            },
-        )
+            }
+        }
     }
 
     trackToAddToPlaylist?.let { track ->
@@ -239,29 +257,25 @@ fun LibraryScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                                    .border(
-                                        width = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant,
-                                        shape = RoundedCornerShape(8.dp),
-                                    ),
+                                    .size(38.dp)
+                                    .graphicsLayer { rotationZ = -4f }
+                                    .sakugaCelShadow(tokens.accent, cornerRadius = 10.dp, offsetX = 2.5.dp, offsetY = 3.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                                    .border(2.2.dp, tokens.inkBorder, RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.GraphicEq,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
+                                SakugaEqualizer(isPlaying = playback.isPlaying)
+                            }
+                            Column {
+                                Text(
+                                    text = "Noir Music",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                 )
                             }
-                            Text(
-                                text = "Noir Music",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onBackground,
-                            )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -269,28 +283,63 @@ fun LibraryScreen(
                         titleContentColor = MaterialTheme.colorScheme.onBackground,
                     ),
                     actions = {
-                        if (selectedTabIndex == 0) {
+                        // Daylight / Midnight Sakuga theme switch
+                        SakugaIconButton(
+                            onClick = onToggleTheme,
+                            vfx = SakugaIconVfx.THEME_SHIFT,
+                            framed = true,
+                            frameColor = if (themeMode == SakugaThemeMode.DAYLIGHT) tokens.violetFill else tokens.cyanFill,
+                            contentDescription = if (themeMode == SakugaThemeMode.DAYLIGHT) {
+                                "Aktifkan tema Sakuga Midnight"
+                            } else {
+                                "Aktifkan tema Sakuga Daylight"
+                            },
+                        ) {
+                            Icon(
+                                imageVector = if (themeMode == SakugaThemeMode.DAYLIGHT) {
+                                    Icons.Filled.DarkMode
+                                } else {
+                                    Icons.Filled.LightMode
+                                },
+                                contentDescription = null,
+                                tint = if (themeMode == SakugaThemeMode.DAYLIGHT) {
+                                    tokens.onVioletFill
+                                } else {
+                                    tokens.onCyanFill
+                                },
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+
+                        if (selectedTabIndex == LibraryTab.SONGS.ordinal) {
                             Box {
-                                IconButton(onClick = { sortMenuOpen = true }) {
+                                SakugaIconButton(
+                                    onClick = { sortMenuOpen = true },
+                                    vfx = SakugaIconVfx.SNAP,
+                                    framed = true,
+                                    contentDescription = "Urutkan lagu",
+                                ) {
                                     Icon(
                                         Icons.AutoMirrored.Filled.Sort,
-                                        contentDescription = "Urutkan lagu",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(20.dp),
                                     )
                                 }
                                 DropdownMenu(
                                     expanded = sortMenuOpen,
                                     onDismissRequest = { sortMenuOpen = false },
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 ) {
                                     SortOrder.entries.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(option.label) },
+                                            text = { Text(option.label, fontWeight = FontWeight.Bold) },
                                             trailingIcon = if (option == sort) {
                                                 {
                                                     Icon(
                                                         Icons.Filled.Check,
                                                         contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        tint = tokens.accentText,
                                                     )
                                                 }
                                             } else {
@@ -305,38 +354,51 @@ fun LibraryScreen(
                                 }
                             }
                         } else if (selectedTabIndex == LibraryTab.PLAYLISTS.ordinal) {
-                            IconButton(onClick = {
-                                newPlaylistNameText = ""
-                                showCreatePlaylistDialog = true
-                            }) {
+                            SakugaIconButton(
+                                onClick = {
+                                    newPlaylistNameText = ""
+                                    showCreatePlaylistDialog = true
+                                },
+                                vfx = SakugaIconVfx.PRIMARY_CONFIRM,
+                                framed = true,
+                                frameColor = tokens.accent,
+                                contentDescription = "Buat playlist baru",
+                            ) {
                                 Icon(
                                     Icons.Filled.Add,
-                                    contentDescription = "Buat playlist baru",
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    contentDescription = null,
+                                    tint = tokens.onAccent,
+                                    modifier = Modifier.size(20.dp),
                                 )
                             }
                         }
-                        IconButton(onClick = onRefresh) {
+
+                        SakugaIconButton(
+                            onClick = onRefresh,
+                            vfx = SakugaIconVfx.SKIP_NEXT,
+                            framed = true,
+                            contentDescription = "Muat ulang",
+                        ) {
                             Icon(
                                 Icons.Filled.Refresh,
-                                contentDescription = "Muat ulang",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     },
                 )
 
-                // Storage Telemetry Banner (Stitch Screen 1)
+                // Kinetic Archive Status Ribbon
                 val totalTracksCount = (state as? LibraryUiState.Content)?.all?.size ?: 0
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                        )
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                        .border(1.5.dp, tokens.inkBorder, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -347,28 +409,42 @@ fun LibraryScreen(
                         Icon(
                             imageVector = Icons.Filled.Storage,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp),
+                            tint = tokens.accentText,
+                            modifier = Modifier.size(15.dp),
                         )
                         Text(
-                            text = if (totalTracksCount > 0) "$totalTracksCount local tracks scanned" else "Local audio storage",
+                            text = if (totalTracksCount > 0) "$totalTracksCount lagu lokal siap diputar" else "Penyimpanan audio lokal",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                    Text(
-                        text = "STORAGE: LOCAL",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (themeMode == SakugaThemeMode.DAYLIGHT) tokens.cyanFill else tokens.violetFill)
+                            .border(1.dp, tokens.inkBorder, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            text = if (themeMode == SakugaThemeMode.DAYLIGHT) "SAKUGA DAY" else "SAKUGA NIGHT",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Black,
+                            fontStyle = FontStyle.Italic,
+                            color = if (themeMode == SakugaThemeMode.DAYLIGHT) tokens.onCyanFill else tokens.onVioletFill,
+                        )
+                    }
                 }
 
                 if (!playback.isConnected && playback.errorMessage != null) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.errorContainer)
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .border(2.dp, MaterialTheme.colorScheme.error, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -388,36 +464,15 @@ fun LibraryScreen(
                     }
                 }
 
-                PrimaryTabRow(
-                    selectedTabIndex = selectedTabIndex,
-                    containerColor = MaterialTheme.colorScheme.background,
-                    contentColor = MaterialTheme.colorScheme.primary,
-                ) {
-                    Tab(
-                        selected = selectedTabIndex == LibraryTab.SONGS.ordinal,
-                        onClick = { selectedTabIndex = LibraryTab.SONGS.ordinal },
-                        text = { Text("Lagu") },
-                    )
-                    Tab(
-                        selected = selectedTabIndex == LibraryTab.FAVORITES.ordinal,
-                        onClick = { selectedTabIndex = LibraryTab.FAVORITES.ordinal },
-                        text = { Text("Favorit") },
-                    )
-                    Tab(
-                        selected = selectedTabIndex == LibraryTab.HISTORY.ordinal,
-                        onClick = { selectedTabIndex = LibraryTab.HISTORY.ordinal },
-                        text = { Text("Riwayat") },
-                    )
-                    Tab(
-                        selected = selectedTabIndex == LibraryTab.PLAYLISTS.ordinal,
-                        onClick = { selectedTabIndex = LibraryTab.PLAYLISTS.ordinal },
-                        text = { Text("Playlist") },
-                    )
-                }
+                SakugaTabRow(
+                    tabs = listOf("Lagu", "Favorit", "Riwayat", "Playlist"),
+                    selectedIndex = selectedTabIndex,
+                    onSelect = { selectedTabIndex = it },
+                )
             }
         },
         bottomBar = miniPlayerBar,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SakugaSnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -427,7 +482,7 @@ fun LibraryScreen(
             when (selectedTabIndex) {
                 LibraryTab.SONGS.ordinal -> {
                     when (state) {
-                        LibraryUiState.Loading -> LoadingView("Memindai file musik…")
+                        LibraryUiState.Loading -> LoadingView("Memindai file musik...")
                         LibraryUiState.Empty -> CenteredMessage(
                             icon = Icons.Filled.LibraryMusic,
                             title = "Tidak ada musik ditemukan",
@@ -447,6 +502,7 @@ fun LibraryScreen(
                             query = query,
                             favoriteIds = favoriteIds,
                             currentMediaId = playback.nowPlaying?.mediaId,
+                            isPlaying = playback.isPlaying,
                             onQueryChange = onQueryChange,
                             onTrackClick = onTrackClick,
                             onPlayNext = { track ->
@@ -470,6 +526,7 @@ fun LibraryScreen(
                     FavoritesTabContent(
                         tracks = favoriteTracks,
                         currentMediaId = playback.nowPlaying?.mediaId,
+                        isPlaying = playback.isPlaying,
                         onTrackClick = onTrackClick,
                         onPlayNext = { track ->
                             onPlayNext(track)
@@ -494,6 +551,7 @@ fun LibraryScreen(
                         mostPlayedTracks = mostPlayedTracks,
                         favoriteIds = favoriteIds,
                         currentMediaId = playback.nowPlaying?.mediaId,
+                        isPlaying = playback.isPlaying,
                         onTrackClick = onTrackClick,
                         onPlayNext = { track ->
                             onPlayNext(track)
@@ -537,87 +595,123 @@ private fun PlaylistsTabContent(
     onDeletePlaylist: (String) -> Unit,
     onRenamePlaylist: (String, String) -> Unit,
 ) {
+    val tokens = SakugaTheme.tokens
+    val fx = LocalSakugaFx.current
     var playlistToRename by remember { mutableStateOf<Playlist?>(null) }
     var renameInput by remember { mutableStateOf("") }
     var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
 
     if (playlistToRename != null) {
-        AlertDialog(
-            onDismissRequest = { playlistToRename = null },
-            title = { Text("Ganti Nama Playlist") },
-            text = {
-                OutlinedTextField(
-                    value = renameInput,
-                    onValueChange = { renameInput = it },
-                    label = { Text("Nama Baru") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val trimmed = renameInput.trim()
-                        if (trimmed.isNotBlank()) {
-                            onRenamePlaylist(playlistToRename!!.id, trimmed)
-                            playlistToRename = null
+        SakugaDialog(onDismissRequest = { playlistToRename = null }, horizontalPadding = 20.dp) {
+            SakugaPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shadowColor = tokens.cyanFill,
+                cornerRadius = 16.dp,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Ganti Nama Playlist", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = renameInput,
+                        onValueChange = { renameInput = it },
+                        label = { Text("Nama Baru") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        SakugaButton(
+                            onClick = { playlistToRename = null },
+                            style = SakugaButtonStyle.SECONDARY,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Batal", fontWeight = FontWeight.Bold)
                         }
-                    },
-                    enabled = renameInput.isNotBlank(),
-                ) {
-                    Text("Simpan")
+                        SakugaButton(
+                            onClick = {
+                                val trimmed = renameInput.trim()
+                                if (trimmed.isNotBlank()) {
+                                    onRenamePlaylist(playlistToRename!!.id, trimmed)
+                                    playlistToRename = null
+                                }
+                            },
+                            enabled = renameInput.isNotBlank(),
+                            style = SakugaButtonStyle.ACCENT,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Simpan", fontWeight = FontWeight.Black)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { playlistToRename = null }) {
-                    Text("Batal")
-                }
-            },
-        )
+            }
+        }
     }
 
     if (playlistToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { playlistToDelete = null },
-            title = { Text("Hapus Playlist?") },
-            text = { Text("Playlist “${playlistToDelete!!.name}” akan dihapus.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onDeletePlaylist(playlistToDelete!!.id)
-                        playlistToDelete = null
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError,
-                    ),
-                ) {
-                    Text("Hapus")
+        SakugaDialog(onDismissRequest = { playlistToDelete = null }, horizontalPadding = 20.dp) {
+            SakugaPanel(
+                modifier = Modifier.fillMaxWidth(),
+                shadowColor = MaterialTheme.colorScheme.error,
+                cornerRadius = 16.dp,
+                contentPadding = PaddingValues(20.dp),
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Hapus Playlist?", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Playlist \"${playlistToDelete!!.name}\" akan dihapus.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                        SakugaButton(
+                            onClick = { playlistToDelete = null },
+                            style = SakugaButtonStyle.SECONDARY,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Batal", fontWeight = FontWeight.Bold)
+                        }
+                        SakugaButton(
+                            onClick = {
+                                onDeletePlaylist(playlistToDelete!!.id)
+                                playlistToDelete = null
+                            },
+                            style = SakugaButtonStyle.DANGER,
+                            sfxText = "ズザッ",
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("Hapus", fontWeight = FontWeight.Black)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { playlistToDelete = null }) {
-                    Text("Batal")
-                }
-            },
-        )
+            }
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Quick Action: Create Playlist Card (Stitch Screen 4)
-        Surface(
+        // Bold Create Playlist hero banner
+        var createCenter by remember { mutableStateOf(Offset.Zero) }
+        SakugaPanel(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .clickable(onClick = onCreatePlaylist),
-            shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+                .trackRootCenter { createCenter = it }
+                .clickable {
+                    if (createCenter != Offset.Zero) {
+                        fx.emitPrimaryConfirm(createCenter, halfWDp = 100f, halfHDp = 24f, sfx = "ドン!")
+                    }
+                    onCreatePlaylist()
+                },
+            containerColor = tokens.cyanFill,
+            borderColor = tokens.inkBorder,
+            shadowColor = tokens.accent,
+            cornerRadius = 14.dp,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -627,42 +721,39 @@ private fun PlaylistsTabContent(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .border(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant,
-                                shape = RoundedCornerShape(8.dp),
-                            ),
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .border(2.dp, tokens.inkBorder, RoundedCornerShape(10.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.Add,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp),
+                            tint = tokens.accentText,
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                     Column {
                         Text(
                             text = "Buat Playlist Baru",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            fontStyle = FontStyle.Italic,
+                            color = tokens.onCyanFill,
                         )
                         Text(
-                            text = "Atur dan simpan daftar lagu favorit",
+                            text = "Susun daftar lagu favorit Anda",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = tokens.onCyanFill.copy(alpha = 0.82f),
                         )
                     }
                 }
                 Icon(
                     imageVector = Icons.Filled.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
+                    tint = tokens.onCyanFill,
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
@@ -671,60 +762,61 @@ private fun PlaylistsTabContent(
             CenteredMessage(
                 icon = Icons.AutoMirrored.Filled.PlaylistPlay,
                 title = "Belum ada playlist",
-                body = "Ketuk “Buat Playlist Baru” untuk mulai menyusun daftar lagu favorit Anda.",
+                body = "Ketuk Buat Playlist Baru untuk mulai menyusun daftar lagu favorit Anda.",
                 actionLabel = "Buat Playlist",
                 onAction = onCreatePlaylist,
             )
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(playlists, key = { it.id }) { playlist ->
                     var menuExpanded by remember { mutableStateOf(false) }
+                    var cardCenter by remember { mutableStateOf(Offset.Zero) }
+                    val (tintBg, tintFg) = sakugaTrackTint(playlist.id.hashCode().toLong())
 
-                    Card(
+                    SakugaPanel(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onSelectPlaylist(playlist.id) },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                        ),
-                        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                            .trackRootCenter { cardCenter = it }
+                            .clickable {
+                                if (cardCenter != Offset.Zero) {
+                                    fx.emitSecondarySnap(cardCenter, sfx = "カチッ")
+                                }
+                                onSelectPlaylist(playlist.id)
+                            },
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        shadowColor = tokens.celShadow,
+                        cornerRadius = 14.dp,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                                    .border(
-                                        width = 0.5.dp,
-                                        color = MaterialTheme.colorScheme.outlineVariant,
-                                        shape = RoundedCornerShape(8.dp),
-                                    ),
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(tintBg)
+                                    .border(2.dp, tokens.inkBorder, RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp),
+                                    tint = tintFg,
+                                    modifier = Modifier.size(26.dp),
                                 )
                             }
-                            Spacer(Modifier.width(14.dp))
+                            Spacer(Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = playlist.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -737,19 +829,24 @@ private fun PlaylistsTabContent(
                             }
 
                             Box {
-                                IconButton(onClick = { menuExpanded = true }) {
+                                SakugaIconButton(
+                                    onClick = { menuExpanded = true },
+                                    vfx = SakugaIconVfx.SNAP,
+                                    contentDescription = "Opsi playlist",
+                                ) {
                                     Icon(
                                         imageVector = Icons.Filled.MoreVert,
-                                        contentDescription = "Opsi playlist",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
                                     )
                                 }
                                 DropdownMenu(
                                     expanded = menuExpanded,
                                     onDismissRequest = { menuExpanded = false },
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("Ganti Nama") },
+                                        text = { Text("Ganti Nama", fontWeight = FontWeight.Bold) },
                                         leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
                                         onClick = {
                                             menuExpanded = false
@@ -758,7 +855,7 @@ private fun PlaylistsTabContent(
                                         },
                                     )
                                     DropdownMenuItem(
-                                        text = { Text("Hapus") },
+                                        text = { Text("Hapus", fontWeight = FontWeight.Bold) },
                                         leadingIcon = {
                                             Icon(
                                                 Icons.Filled.Delete,
@@ -787,6 +884,7 @@ private fun LibraryContent(
     query: String,
     favoriteIds: Set<Long>,
     currentMediaId: String?,
+    isPlaying: Boolean,
     onQueryChange: (String) -> Unit,
     onTrackClick: (List<Track>, Int) -> Unit,
     onPlayNext: (Track) -> Unit,
@@ -798,107 +896,64 @@ private fun LibraryContent(
     val total = state.all.size
     val visible = state.visible.size
     val countLabel = if (query.isBlank()) {
-        "$total ${if (total == 1) "lagu" else "lagu"}"
+        "$total lagu"
     } else {
         "$visible dari $total lagu"
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            placeholder = {
-                Text(
-                    "Cari lagu, artis, atau album",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.Search,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-            trailingIcon = if (query.isNotEmpty()) {
-                {
-                    IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Hapus pencarian")
-                    }
-                }
-            } else {
-                null
-            },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-            shape = RoundedCornerShape(8.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = MaterialTheme.colorScheme.primary,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .border(
-                    width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    shape = RoundedCornerShape(8.dp),
-                ),
+        SakugaSearchField(
+            query = query,
+            onQueryChange = onQueryChange,
+            onSearchAction = { focusManager.clearFocus() },
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
         )
 
-        // Category Filter & Quick Shuffle Bar (Stitch Screen 1)
         if (state.visible.isNotEmpty()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = countLabel,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.clickable {
+                SakugaButton(
+                    onClick = {
                         val shuffled = state.visible.shuffled()
                         onTrackClick(shuffled, 0)
                     },
+                    style = SakugaButtonStyle.ACCENT,
+                    cornerRadius = 10.dp,
+                    sfxText = "ドン!",
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Shuffle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Text(
-                            text = "Acak Semua",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Filled.Shuffle,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Acak Semua",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Black,
+                        fontStyle = FontStyle.Italic,
+                    )
                 }
             }
         }
+
         if (state.visible.isEmpty()) {
             CenteredMessage(
                 icon = Icons.Filled.SearchOff,
-                title = "Tidak ada lagu cocok dengan “${state.query}”",
+                title = "Tidak ada lagu cocok dengan \"${state.query}\"",
                 body = "Coba gunakan kata kunci lain atau hapus filter.",
                 actionLabel = "Hapus filter",
                 onAction = { onQueryChange("") },
@@ -921,7 +976,7 @@ private fun LibraryContent(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(end = 30.dp, bottom = 16.dp),
+                    contentPadding = PaddingValues(end = 34.dp, top = 2.dp, bottom = 18.dp),
                 ) {
                     itemsIndexed(
                         items = state.visible,
@@ -931,6 +986,7 @@ private fun LibraryContent(
                         TrackRow(
                             track = track,
                             isCurrent = currentMediaId == track.id.toString(),
+                            isPlaying = isPlaying,
                             isFavorite = favoriteIds.contains(track.id),
                             onClick = {
                                 val fullIndex = state.allSorted.indexOfFirst { it.id == track.id }
@@ -965,7 +1021,7 @@ private fun LibraryContent(
                     },
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                        .padding(vertical = 4.dp, horizontal = 3.dp),
                 )
             }
         }
@@ -976,6 +1032,7 @@ private fun LibraryContent(
 private fun FavoritesTabContent(
     tracks: List<Track>,
     currentMediaId: String?,
+    isPlaying: Boolean,
     onTrackClick: (List<Track>, Int) -> Unit,
     onPlayNext: (Track) -> Unit,
     onAddToQueue: (Track) -> Unit,
@@ -998,71 +1055,45 @@ private fun FavoritesTabContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = "${tracks.size} lagu favorit",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurface,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-                    modifier = Modifier.clickable { onTrackClick(tracks, 0) },
+                SakugaButton(
+                    onClick = { onTrackClick(tracks, 0) },
+                    style = SakugaButtonStyle.CYAN,
+                    cornerRadius = 10.dp,
+                    sfxText = "ドン!",
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Text(
-                            text = "Putar",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Putar", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Black)
                 }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.clickable { onTrackClick(tracks.shuffled(), 0) },
+                SakugaButton(
+                    onClick = { onTrackClick(tracks.shuffled(), 0) },
+                    style = SakugaButtonStyle.ACCENT,
+                    cornerRadius = 10.dp,
+                    sfxText = "シュッ!",
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Shuffle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Text(
-                            text = "Acak",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
+                    Icon(Icons.Filled.Shuffle, contentDescription = null, modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Acak", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Black)
                 }
             }
         }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp),
+            contentPadding = PaddingValues(bottom = 18.dp),
         ) {
             itemsIndexed(
                 items = tracks,
@@ -1071,6 +1102,7 @@ private fun FavoritesTabContent(
                 TrackRow(
                     track = track,
                     isCurrent = currentMediaId == track.id.toString(),
+                    isPlaying = isPlaying,
                     trackIndex = index + 1,
                     isFavorite = true,
                     onClick = { onTrackClick(tracks, index) },
@@ -1092,6 +1124,7 @@ private fun HistoryTabContent(
     mostPlayedTracks: List<TrackPlayEntry>,
     favoriteIds: Set<Long>,
     currentMediaId: String?,
+    isPlaying: Boolean,
     onTrackClick: (List<Track>, Int) -> Unit,
     onPlayNext: (Track) -> Unit,
     onAddToQueue: (Track) -> Unit,
@@ -1103,29 +1136,17 @@ private fun HistoryTabContent(
     val activeEntries = if (mode == HistoryMode.RECENT) recentTracks else mostPlayedTracks
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
-            SingleChoiceSegmentedButtonRow {
-                SegmentedButton(
-                    selected = mode == HistoryMode.RECENT,
-                    onClick = { mode = HistoryMode.RECENT },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                ) {
-                    Text("Baru Diputar")
-                }
-                SegmentedButton(
-                    selected = mode == HistoryMode.MOST_PLAYED,
-                    onClick = { mode = HistoryMode.MOST_PLAYED },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                ) {
-                    Text("Sering Diputar")
-                }
-            }
+            SakugaSegmentedSwitch(
+                options = listOf("Baru Diputar", "Sering Diputar"),
+                selectedIndex = mode.ordinal,
+                onSelect = { idx -> mode = if (idx == 0) HistoryMode.RECENT else HistoryMode.MOST_PLAYED },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         if (activeEntries.isEmpty()) {
@@ -1140,7 +1161,7 @@ private fun HistoryTabContent(
             val activeTracks = remember(activeEntries) { activeEntries.map { it.track } }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 16.dp),
+                contentPadding = PaddingValues(bottom = 18.dp),
             ) {
                 itemsIndexed(
                     items = activeEntries,
@@ -1149,6 +1170,7 @@ private fun HistoryTabContent(
                     TrackRow(
                         track = entry.track,
                         isCurrent = currentMediaId == entry.track.id.toString(),
+                        isPlaying = isPlaying,
                         trackIndex = index + 1,
                         isFavorite = favoriteIds.contains(entry.track.id),
                         subtitleSuffix = "${entry.playCount}x diputar",
