@@ -131,6 +131,8 @@ enum class SakugaButtonStyle {
 
 enum class SakugaIconVfx {
     SNAP,
+    TOGGLE_SPLASH_ON,
+    TOGGLE_SPLASH_OFF,
     PLAY_BLAST,
     SKIP_NEXT,
     SKIP_PREV,
@@ -138,6 +140,7 @@ enum class SakugaIconVfx {
     FAVORITE_OFF,
     THEME_SHIFT,
     PRIMARY_CONFIRM,
+    NONE,
 }
 
 /** Tracks the root-space center of a composable so Sakuga VFX spawn accurately over it. */
@@ -392,6 +395,8 @@ fun SakugaIconButton(
                     if (center != Offset.Zero) {
                         when (vfx) {
                             SakugaIconVfx.SNAP -> fx.emitSecondarySnap(center)
+                            SakugaIconVfx.TOGGLE_SPLASH_ON -> fx.emitToggleSplash(center, turnedOn = true)
+                            SakugaIconVfx.TOGGLE_SPLASH_OFF -> fx.emitToggleSplash(center, turnedOn = false)
                             SakugaIconVfx.PLAY_BLAST -> fx.emitPlayBlast(center, isNowPlaying = true)
                             SakugaIconVfx.SKIP_NEXT -> fx.emitSkipSlash(center, forward = true)
                             SakugaIconVfx.SKIP_PREV -> fx.emitSkipSlash(center, forward = false)
@@ -399,6 +404,7 @@ fun SakugaIconButton(
                             SakugaIconVfx.FAVORITE_OFF -> fx.emitFavoriteBurst(center, nowFavorite = false)
                             SakugaIconVfx.THEME_SHIFT -> fx.emitThemeShift(center)
                             SakugaIconVfx.PRIMARY_CONFIRM -> fx.emitPrimaryConfirm(center)
+                            SakugaIconVfx.NONE -> Unit
                         }
                     }
                     onClick()

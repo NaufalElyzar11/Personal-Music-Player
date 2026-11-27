@@ -910,6 +910,14 @@ class SakugaFxController {
         spawnSfx(Offset(center.x, center.y - dp(24f)), text = "カチッ", sizeDp = 16f, angleDeg = -6f, useCyan = !turnedOn, life = 0.48f)
     }
 
+    /** Lightweight anime sparkle and wedge pop along the left edge when synced lyrics advance. */
+    fun emitLyricBeat(leftEdge: Offset) {
+        spawnTicks(leftEdge, count = 3, radiusDp = 10f, lenDp = 9f, dirRad = -0.35f, life = 0.34f, fanRad = 0.52f)
+        spawnKira(Offset(leftEdge.x + dp(6f), leftEdge.y - dp(14f)), radiusDp = 8.5f, life = 0.48f, useCyan = true)
+        spawnKira(Offset(leftEdge.x + dp(14f), leftEdge.y + dp(12f)), radiusDp = 7f, life = 0.44f, useCyan = false)
+        spawnPuff(Offset(leftEdge.x - dp(4f), leftEdge.y), lobeCount = 3, sizeDp = 5.5f, vxDp = -14f, vyDp = -8f, life = 0.36f, spread = 0.7f)
+    }
+
     fun emitThemeShift(center: Offset) {
         spawnImpactFlash(center, radiusDp = 88f)
         spawnBurst(center, radiusDp = 64f, spikes = 16)

@@ -564,19 +564,16 @@ private fun ControlsRow(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.width(52.dp),
         ) {
-            var shuffleCenter by remember { mutableStateOf(Offset.Zero) }
             SakugaIconButton(
-                onClick = {
-                    if (shuffleCenter != Offset.Zero) {
-                        fx.emitToggleSplash(shuffleCenter, turnedOn = !playback.shuffleEnabled)
-                    }
-                    onToggleShuffle()
+                onClick = onToggleShuffle,
+                vfx = if (playback.shuffleEnabled) {
+                    SakugaIconVfx.TOGGLE_SPLASH_OFF
+                } else {
+                    SakugaIconVfx.TOGGLE_SPLASH_ON
                 },
-                vfx = SakugaIconVfx.SNAP,
                 framed = true,
                 frameColor = if (playback.shuffleEnabled) tokens.cyanFill else MaterialTheme.colorScheme.surfaceContainerLow,
                 contentDescription = if (playback.shuffleEnabled) "Shuffle on" else "Shuffle off",
-                modifier = Modifier.trackRootCenter { shuffleCenter = it },
             ) {
                 Icon(
                     imageVector = Icons.Filled.Shuffle,
@@ -704,20 +701,17 @@ private fun ControlsRow(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.width(52.dp),
         ) {
-            var repeatCenter by remember { mutableStateOf(Offset.Zero) }
             val repeatActive = playback.repeatMode != Player.REPEAT_MODE_OFF
             SakugaIconButton(
-                onClick = {
-                    if (repeatCenter != Offset.Zero) {
-                        fx.emitToggleSplash(repeatCenter, turnedOn = !repeatActive)
-                    }
-                    onCycleRepeat()
+                onClick = onCycleRepeat,
+                vfx = if (repeatActive) {
+                    SakugaIconVfx.TOGGLE_SPLASH_OFF
+                } else {
+                    SakugaIconVfx.TOGGLE_SPLASH_ON
                 },
-                vfx = SakugaIconVfx.SNAP,
                 framed = true,
                 frameColor = if (repeatActive) tokens.cyanFill else MaterialTheme.colorScheme.surfaceContainerLow,
                 contentDescription = repeatDescription,
-                modifier = Modifier.trackRootCenter { repeatCenter = it },
             ) {
                 Icon(
                     imageVector = if (playback.repeatMode == Player.REPEAT_MODE_ONE) {

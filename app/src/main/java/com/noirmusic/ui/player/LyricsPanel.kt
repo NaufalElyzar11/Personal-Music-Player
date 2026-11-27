@@ -2,8 +2,11 @@ package com.noirmusic.ui.player
 
 import android.os.SystemClock
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -44,6 +47,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,10 +59,11 @@ import com.noirmusic.ui.common.CenteredMessage
 import com.noirmusic.ui.common.LoadingView
 import com.noirmusic.ui.sakuga.LocalSakugaFx
 import com.noirmusic.ui.sakuga.sakugaCelShadow
-import com.noirmusic.ui.sakuga.trackRootCenter
 import com.noirmusic.ui.theme.ActiveLyricLineStyle
 import com.noirmusic.ui.theme.LyricLineStyle
 import com.noirmusic.ui.theme.SakugaTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val USER_SCROLL_COOLDOWN_MS = 3_000L
 
@@ -108,8 +115,6 @@ private fun SyncedLyricsView(
     activeIndex: Int,
     onSeekTo: (Long) -> Unit,
 ) {
-    val tokens = SakugaTheme.tokens
-    val fx = LocalSakugaFx.current
     val listState = rememberLazyListState()
     val isDragged by listState.interactionSource.collectIsDraggedAsState()
     var lastUserDragMs by remember { mutableLongStateOf(0L) }
@@ -134,7 +139,7 @@ private fun SyncedLyricsView(
         val verticalPad = maxHeight * 0.36f
         LazyColumn(
             state = listState,
-            contentPadding = PaddingValues(vertical = verticalPad, horizontal = 4.dp),
+            contentPadding = PaddingValues(vertical = verticalPad, horizontal = 6.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
             itemsIndexed(
@@ -142,76 +147,11 @@ private fun SyncedLyricsView(
                 key = { index, _ -> index },
                 contentType = { _, _ -> "lyric" },
             ) { index, line ->
-                val isActive = index == activeIndex
-                var lineCenter by remember { mutableStateOf(Offset.Zero) }
-
-                val textColor by animateColorAsState(
-                    targetValue = if (isActive) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    label = "lyricColor",
+                SyncedLyricRow(
+                    line = line,
+                    isActive = index == activeIndex,
+                    onSeekTo = onSeekTo,
                 )
-                val popScale by animateFloatAsState(
-                    targetValue = if (isActive) 1.03f else 0.96f,
-                    animationSpec = spring(dampingRatio = 0.48f, stiffness = 420f),
-                    label = "lyricPop",
-                )
-
-                val containerModifier = if (isActive) {
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .graphicsLayer {
-                            scaleX = popScale
-                            scaleY = popScale
-                        }
-                        .sakugaCelShadow(tokens.accent, cornerRadius = 14.dp, offsetX = 4.dp, offsetY = 5.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .border(2.5.dp, tokens.inkBorder, RoundedCornerShape(14.dp))
-                } else {
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                }
-
-                Box(
-                    modifier = containerModifier
-                        .trackRootCenter { lineCenter = it }
-                        .clickable(
-                            role = Role.Button,
-                            onClickLabel = "Lompat ke baris lirik",
-                            onClick = {
-                                if (lineCenter != Offset.Zero) {
-                                    fx.emitSecondarySnap(lineCenter, sfx = "カチッ")
-                                }
-                                onSeekTo(line.timeMs)
-                            },
-                        )
-                        .padding(horizontal = if (isActive) 14.dp else 8.dp, vertical = if (isActive) 12.dp else 7.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (isActive) {
-                            Box(
-                                modifier = Modifier
-                                    .width(5.dp)
-                                    .height(26.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(tokens.accent),
-                            )
-                            Spacer(Modifier.width(10.dp))
-                        }
-                        Text(
-                            text = line.text.ifEmpty { "♪" },
-                            style = if (isActive) ActiveLyricLineStyle else LyricLineStyle,
-                            color = textColor,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
             }
             item(key = "attribution") {
                 Spacer(Modifier.height(18.dp))
@@ -222,6 +162,177 @@ private fun SyncedLyricsView(
                     modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
+        }
+    }
+}
+
+/**
+ * Animated anime lyric row: transitioning into active state triggers a snappy squash-and-stretch pop,
+ * horizontal dash-in slide, micro-tilt settle, cel highlight flash, growing accent bar, and subtle beat sparks.
+ */
+@Composable
+private fun SyncedLyricRow(
+    line: LyricLine,
+    isActive: Boolean,
+    onSeekTo: (Long) -> Unit,
+) {
+    val tokens = SakugaTheme.tokens
+    val fx = LocalSakugaFx.current
+    val density = LocalDensity.current
+
+    var rowCenter by remember { mutableStateOf(Offset.Zero) }
+    var leftEdgeAnchor by remember { mutableStateOf(Offset.Zero) }
+    var isFlashing by remember { mutableStateOf(false) }
+
+    // One-shot spring choreography played each time this line becomes active.
+    val punchScaleX = remember { Animatable(1f) }
+    val punchScaleY = remember { Animatable(1f) }
+    val slideOffsetPx = remember { Animatable(0f) }
+    val tiltDeg = remember { Animatable(0f) }
+
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            val startSlidePx = with(density) { (-20).dp.toPx() }
+            launch {
+                punchScaleX.snapTo(0.92f)
+                punchScaleX.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 480f))
+            }
+            launch {
+                punchScaleY.snapTo(1.10f)
+                punchScaleY.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 480f))
+            }
+            launch {
+                slideOffsetPx.snapTo(startSlidePx)
+                slideOffsetPx.animateTo(0f, spring(dampingRatio = 0.56f, stiffness = 420f))
+            }
+            launch {
+                tiltDeg.snapTo(-1.8f)
+                tiltDeg.animateTo(0f, spring(dampingRatio = 0.48f, stiffness = 440f))
+            }
+            launch {
+                isFlashing = true
+                delay(110L)
+                isFlashing = false
+            }
+            if (leftEdgeAnchor != Offset.Zero) {
+                fx.emitLyricBeat(leftEdgeAnchor)
+            }
+        } else {
+            isFlashing = false
+            launch { punchScaleX.animateTo(1f, tween(160)) }
+            launch { punchScaleY.animateTo(1f, tween(160)) }
+            launch { slideOffsetPx.animateTo(0f, tween(160)) }
+            launch { tiltDeg.animateTo(0f, tween(160)) }
+        }
+    }
+
+    val baseScale by animateFloatAsState(
+        targetValue = if (isActive) 1.02f else 0.96f,
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 380f),
+        label = "lyricBaseScale",
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isActive) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(220),
+        label = "lyricTextColor",
+    )
+    val containerColor by animateColorAsState(
+        targetValue = when {
+            !isActive -> Color.Transparent
+            isFlashing -> tokens.cyanFill.copy(alpha = 0.24f)
+            else -> MaterialTheme.colorScheme.surfaceContainerLow
+        },
+        animationSpec = tween(160),
+        label = "lyricBg",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isActive) tokens.inkBorder else Color.Transparent,
+        animationSpec = tween(200),
+        label = "lyricBorder",
+    )
+    val shadowColor by animateColorAsState(
+        targetValue = if (isActive) tokens.accent else Color.Transparent,
+        animationSpec = tween(200),
+        label = "lyricShadow",
+    )
+    val shadowOffset by animateDpAsState(
+        targetValue = if (isActive) 4.dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.52f, stiffness = 420f),
+        label = "lyricShadowOff",
+    )
+    val accentBarHeight by animateDpAsState(
+        targetValue = if (isActive) 28.dp else 0.dp,
+        animationSpec = spring(dampingRatio = 0.44f, stiffness = 460f),
+        label = "lyricBarHeight",
+    )
+    val verticalPad by animateDpAsState(
+        targetValue = if (isActive) 12.dp else 7.dp,
+        animationSpec = tween(180),
+        label = "lyricVPad",
+    )
+    val horizontalPad by animateDpAsState(
+        targetValue = if (isActive) 14.dp else 8.dp,
+        animationSpec = tween(180),
+        label = "lyricHPad",
+    )
+
+    val shape = RoundedCornerShape(14.dp)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = if (isActive) 6.dp else 4.dp)
+            .onGloballyPositioned { coords ->
+                val pos = coords.positionInRoot()
+                val w = coords.size.width.toFloat()
+                val h = coords.size.height.toFloat()
+                rowCenter = Offset(pos.x + w / 2f, pos.y + h / 2f)
+                leftEdgeAnchor = Offset(pos.x + with(density) { 10.dp.toPx() }, pos.y + h / 2f)
+            }
+            .graphicsLayer {
+                scaleX = baseScale * punchScaleX.value
+                scaleY = baseScale * punchScaleY.value
+                translationX = slideOffsetPx.value
+                rotationZ = tiltDeg.value
+            }
+            .sakugaCelShadow(
+                color = shadowColor,
+                cornerRadius = 14.dp,
+                offsetX = shadowOffset,
+                offsetY = if (isActive) shadowOffset + 1.dp else 0.dp,
+            )
+            .clip(shape)
+            .background(containerColor, shape)
+            .border(if (isActive) 2.5.dp else 0.dp, borderColor, shape)
+            .clickable(
+                role = Role.Button,
+                onClickLabel = "Lompat ke baris lirik",
+                onClick = {
+                    if (rowCenter != Offset.Zero) {
+                        fx.emitSecondarySnap(rowCenter, sfx = "カチッ")
+                    }
+                    onSeekTo(line.timeMs)
+                },
+            )
+            .padding(horizontal = horizontalPad, vertical = verticalPad),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (accentBarHeight > 1.dp) {
+                Box(
+                    modifier = Modifier
+                        .width(5.dp)
+                        .height(accentBarHeight)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(tokens.accent),
+                )
+                Spacer(Modifier.width(10.dp))
+            }
+            Text(
+                text = line.text.ifEmpty { "♪" },
+                style = if (isActive) ActiveLyricLineStyle else LyricLineStyle,
+                color = textColor,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

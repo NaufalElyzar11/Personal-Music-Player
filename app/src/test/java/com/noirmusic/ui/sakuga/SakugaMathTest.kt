@@ -55,6 +55,22 @@ class SakugaMathTest {
     }
 
     @Test
+    fun fxController_lyricBeatAndToggleSplashEmitExpectedParticles() {
+        val fx = SakugaFxController()
+        fx.emitLyricBeat(Offset(24f, 300f))
+        assertTrue(fx.hasActiveParticles)
+        assertEquals(4, fx.particles.size)
+
+        repeat(40) { fx.advance(0.03f) }
+        assertFalse(fx.hasActiveParticles)
+
+        fx.emitToggleSplash(Offset(200f, 500f), turnedOn = true)
+        assertTrue(fx.hasActiveParticles)
+        // Splash emits 1 crown + 6 drops + 1 wob + 1 ticks + 1 single sfx (no duplicate sfx)
+        assertEquals(10, fx.particles.size)
+    }
+
+    @Test
     fun themeModeDecoder_defaultsToDaylightAndRecognizesMidnight() {
         assertEquals(SakugaThemeMode.DAYLIGHT, DataStoreThemePreferencesStore.decodeMode(null))
         assertEquals(SakugaThemeMode.DAYLIGHT, DataStoreThemePreferencesStore.decodeMode("UNKNOWN"))
