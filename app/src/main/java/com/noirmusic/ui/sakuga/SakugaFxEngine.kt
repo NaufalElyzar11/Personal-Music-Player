@@ -903,8 +903,9 @@ class SakugaFxController {
         }
     }
 
-    fun emitToggleSplash(center: Offset, turnedOn: Boolean) {
-        spawnSplash(center, widthDp = 36f, heightDp = 22f, life = 0.56f)
+    /** The splash crown rises from a flat baseline, so it is anchored to the bottom edge of the control. */
+    fun emitToggleSplash(center: Offset, turnedOn: Boolean, baselineDropDp: Float = 20f) {
+        spawnSplash(Offset(center.x, center.y + dp(baselineDropDp)), widthDp = 36f, heightDp = 22f, life = 0.56f)
         spawnWob(Offset(center.x + if (turnedOn) dp(16f) else -dp(16f), center.y), dirSign = if (turnedOn) 1f else -1f, radiusDp = 14f)
         spawnTicks(center, count = 3, radiusDp = 18f, lenDp = 9f, dirRad = -1.1f, useCyan = !turnedOn)
         spawnSfx(Offset(center.x, center.y - dp(24f)), text = "カチッ", sizeDp = 16f, angleDeg = -6f, useCyan = !turnedOn, life = 0.48f)

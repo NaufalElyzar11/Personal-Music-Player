@@ -580,6 +580,7 @@ fun SakugaSegmentedSwitch(
                 fx.emitToggleSplash(
                     center = Offset(boxOrigin.x + slotW * (selectedIndex + 0.5f), boxOrigin.y + boxSize.height / 2f),
                     turnedOn = turnedRight,
+                    baselineDropDp = 22f,
                 )
             }
         }
